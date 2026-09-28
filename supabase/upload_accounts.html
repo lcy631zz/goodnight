@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>goodnight · 一键上传账号</title>
+<style>
+  :root { --blue:#3B6FE0; --pink:#F25C7E; }
+  * { box-sizing: border-box; }
+  body {
+    margin:0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg,#eef3ff,#fdeef3); color:#222; padding:24px;
+  }
+  .card {
+    max-width:560px; margin:0 auto; background:#fff; border-radius:18px;
+    padding:28px 26px; box-shadow:0 10px 30px rgba(60,90,160,.12);
+  }
+  h1 { font-size:22px; margin:0 0 6px; }
+  p.lead { color:#555; line-height:1.6; margin:0 0 18px; }
+  .config { background:#f6f8fc; border:1px solid #e3e9f5; border-radius:12px; padding:14px; margin-bottom:16px; }
+  .config label { display:block; font-size:12px; color:#777; margin:10px 0 4px; }
+  .config label:first-child { margin-top:0; }
+  .config input {
+    width:100%; padding:9px 11px; border:1px solid #cdd6e6; border-radius:8px;
+    font-size:13px; font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  .config small { display:block; color:#b06; margin-top:8px; line-height:1.5; }
+  button {
+    width:100%; padding:13px; border:0; border-radius:10px; cursor:pointer;
+    background:var(--blue); color:#fff; font-size:15px; font-weight:600;
+  }
+  button:active { transform:translateY(1px); }
+  #log {
+    margin-top:16px; background:#0f172a; color:#dbeafe; border-radius:10px;
+    padding:12px 14px; font-size:13px; font-family: ui-monospace, Menlo, Consolas, monospace;
+    max-height:260px; overflow:auto; white-space:pre-wrap; line-height:1.6;
+  }
+  #log div.ok   { color:#86efac; }
+  #log div.err  { color:#fca5a5; }
+  #log div.warn { color:#fde68a; }
+  .note { color:#888; font-size:12px; line-height:1.6; margin-top:14px; }
+  code { background:#eef; padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🌙 goodnight 账号一键上传</h1>
+    <p class="lead">本页面在你的浏览器里<strong>直连 Supabase</strong>，自动创建两个账号：<br>
+      <b>小ye</b>（管理员 / 密码 <code>breeze</code>）&nbsp;·&nbsp;
+      <b>MS100</b>（普通用户 / 密码 <code>12345678</code>）<br>
+      密码哈希由与 App 完全一致的 <code>_hash()</code> 算法在浏览器内现算。</p>
+
+    <div class="config">
+      <label>Supabase URL</label>
+      <input id="url" value="https://osmctjyhdvwmeyljeeua.supabase.co">
+      <label>Anon / Publishable Key（在 Supabase 控制台 Project Settings → API 里复制）</label>
+      <input id="key" value="sb_publishable_cOhO4R5J1TcYF_BOXwrfkg_43xpz1cP">
+      <small>⚠️ 请确认此 key 与你的 Supabase 项目 anon/public key <b>完全一致</b>。
+        若不一致请改成正确的 key，否则连不上。（改完也记得同步到
+        <code>lib/config/supabase_config.dart</code>，否则 App 登录同样失败。）</small>
+    </div>
+
+    <button id="go">▶ 一键创建账号</button>
+    <div id="log"></div>
+    <p class="note">提示：若报 RLS / 权限错误，说明还没建表或策略未放开。
+      请先在 Supabase 控制台 <b>SQL Editor</b> 跑 <code>schema.sql</code>（建表 + 开启 allow-all 策略），
+      再回来点这个按钮。也可直接在 SQL Editor 跑 <code>accounts.sql</code> 代替本页面。</p>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    // 与 App 端 lib/... 的 _hash() 完全一致（djb2 变体，16 进制）。
+    // Dart: h = ((h << 5) + h + c) & 0x7FFFFFFF  ==  h = (h * 33 + c) & 0x7FFFFFFF
+    function _hash(s) {
+      let h = 5381;
+      for (let i = 0; i < s.length; i++) {
+        h = (h * 33 + s.charCodeAt(i)) & 0x7FFFFFFF;
+      }
+      return h.toString(16);
+    }
+
+    const ACCOUNTS = [
+      { username:'小ye',  role:'admin', password:'breeze',    emoji:'🌙', color:'#3B6FE0' },
+      { username:'MS100', role:'user',  password:'12345678', emoji:'🎓', color:'#F25C7E' },
+    ];
+
+    const logEl = document.getElementById('log');
+    const log = (msg, cls='') => {
+      const p = document.createElement('div');
+      if (cls) p.className = cls;
+      p.textContent = msg;
+      logEl.appendChild(p);
+      logEl.scrollTop = logEl.scrollHeight;
+    };
+
+    document.getElementById('go').addEventListener('click', async () => {
+      const url = document.getElementById('url').value.trim();
+      const key = document.getElementById('key').value.trim();
+      logEl.innerHTML = '';
+      if (!url || !key) { log('请先填写 URL 和 Key', 'err'); return; }
+
+      log('正在连接 Supabase…');
+      let sb;
+      try {
+        sb = createClient(url, key);
+      } catch (e) {
+        log('创建客户端失败：' + e.message, 'err');
+        return;
+      }
+
+      for (const a of ACCOUNTS) {
+        const ph = _hash(a.password);
+        log(`→ ${a.username}（${a.role}）密码哈希 = ${ph}`);
+        const { error } = await sb.from('users').insert({
+          username: a.username,
+          role: a.role,
+          password_hash: ph,
+          avatar_emoji: a.emoji,
+          avatar_color: a.color,
+        });
+        if (error) {
+          if (error.code === '23505') {
+            log(`   ${a.username} 已存在，跳过 ✓`, 'warn');
+          } else {
+            log(`   ${a.username} 创建失败：${error.message}`, 'err');
+            continue;
+          }
+        } else {
+          log(`   ${a.username} 创建成功 ✓`, 'ok');
+        }
+
+        const { error: e2 } = await sb.from('user_meta').insert({
+          username: a.username,
+          liked: '{}',
+          collected: '{}',
+          history: '{}',
+        });
+        if (e2 && e2.code !== '23505') {
+          log(`   ${a.username} 的 user_meta 写入失败：${e2.message}`, 'err');
+        }
+      }
+      log('完成 ✅ 请到 Supabase Table Editor 确认 users 表有「小ye」和「MS100」。');
+    });
+  </script>
+</body>
+</html>

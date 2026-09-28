@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- goodnight launcher icon - editable vector master.
+       Flat & bold: 2 colors (indigo bg + white emblem), ONE dominant element:
+       a chat bubble with a crescent-moon cutout (negative space). No glow. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3B6FE0"/>
+      <stop offset="1" stop-color="#2E59C7"/>
+    </linearGradient>
+    <!-- white = keep emblem, black = carve away -> crescent moon hole -->
+    <mask id="moonCut">
+      <rect x="0" y="0" width="1024" height="1024" fill="#ffffff"/>
+      <circle cx="552" cy="500" r="138" fill="#000000"/>
+      <circle cx="618" cy="462" r="130" fill="#ffffff"/>
+    </mask>
+  </defs>
+
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#bg)"/>
+
+  <g id="icon" mask="url(#moonCut)">
+    <rect x="286" y="300" width="488" height="400" rx="140" ry="140" fill="#ffffff"/>
+    <polygon points="356,672 288,866 502,694" fill="#ffffff"/>
+  </g>
+</svg>
