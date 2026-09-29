@@ -24,6 +24,7 @@ class _PublishScreenState extends State<PublishScreen> {
   final _content = TextEditingController();
   late String _board;
   final List<String> _imgPaths = [];
+  bool _publishing = false; // 防止重复点击；发布中显示转圈
   final _boards = const ['校园圈', '黑市', '拼车', '招募', '招领', '问答'];
   static const _colors = {
     '校园圈': '#3B6FE0',
@@ -53,6 +54,7 @@ class _PublishScreenState extends State<PublishScreen> {
   void _removeImg(int i) => setState(() => _imgPaths.removeAt(i));
 
   Future<void> _publish() async {
+    if (_publishing) return; // 发布进行中，忽略重复点击
     final t = _title.text.trim();
     final c = _content.text.trim();
     if (t.isEmpty && c.isEmpty && _imgPaths.isEmpty) {
@@ -67,35 +69,51 @@ class _PublishScreenState extends State<PublishScreen> {
       );
       return;
     }
-    final me = await DB.getCurrentUser() ?? '我';
-    final uncertain = review.status == ModStatus.uncertain;
-    final post = Post(
-      board: _board,
-      title: t.isEmpty ? '(无标题)' : t,
-      body: c,
-      imageCaption: _imgPaths.isEmpty ? '我的发布封面' : '图片 ${_imgPaths.length} 张',
-      color: _colors[_board]!,
-      author: me,
-      views: 0,
-      likes: 0,
-      comments: const [],
-      uncertain: uncertain,
-      images: List.from(_imgPaths),
-    );
-    await DB.insertPost(post);
-    if (uncertain && post.id != null) {
-      await DB.addReport(Report(
-        type: 'post',
-        targetId: post.id!,
-        reporter: 'bot',
-        source: 'bot',
-        reason: '边界词触发，已放行但待人工复核',
-      ));
-    }
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('发布成功！已出现在「校园圈」')));
-      Navigator.pop(context, true);
+    setState(() => _publishing = true);
+    try {
+      final me = await DB.getCurrentUser() ?? '我';
+      final uncertain = review.status == ModStatus.uncertain;
+      final post = Post(
+        board: _board,
+        title: t.isEmpty ? '(无标题)' : t,
+        body: c,
+        imageCaption:
+            _imgPaths.isEmpty ? '我的发布封面' : '图片 ${_imgPaths.length} 张',
+        color: _colors[_board]!,
+        author: me,
+        views: 0,
+        likes: 0,
+        comments: const [],
+        uncertain: uncertain,
+        images: List.from(_imgPaths),
+      );
+      await DB.insertPost(post);
+      if (uncertain && post.id != null) {
+        try {
+          await DB.addReport(Report(
+            type: 'post',
+            targetId: post.id!,
+            reporter: 'bot',
+            source: 'bot',
+            reason: '边界词触发，已放行但待人工复核',
+          ));
+        } catch (_) {// 举报失败不影响发布
+        }
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('发布成功！已出现在「校园圈」')));
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      // 网络失败/后端报错时给出明确反馈，而不是毫无反应
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('发布失败，请检查网络后重试')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _publishing = false);
     }
   }
 
@@ -248,16 +266,23 @@ class _PublishScreenState extends State<PublishScreen> {
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: _publish,
+                onPressed: _publishing ? null : _publish,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('发布',
-                    style:
-                        TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                child: _publishing
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.4, color: Colors.white),
+                      )
+                    : const Text('发布',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.bold)),
               ),
             ),
           ],

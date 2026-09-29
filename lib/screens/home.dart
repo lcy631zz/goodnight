@@ -59,7 +59,14 @@ class HomeScreenState extends State<HomeScreen> {
       _posts = all.where((p) => p.board == _board).toList();
       _reasons.clear();
     }
-    await Future.wait(_posts.map((p) => DB.decorate(p)));
+    // 一次性取回我的点赞/收藏，再本地匹配——
+    // 之前对每条帖子调 DB.decorate（各发 2 个网络请求），20 帖=40 次往返，是首页卡顿的大头。
+    final likedSet = (await DB.likedIds()).toSet();
+    final collectedSet = (await DB.collectedIds()).toSet();
+    for (final p in _posts) {
+      p.liked = likedSet.contains(p.id);
+      p.collected = collectedSet.contains(p.id);
+    }
     if (mounted) setState(() {});
   }
 

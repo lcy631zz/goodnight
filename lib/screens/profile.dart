@@ -3,6 +3,7 @@ import '../models.dart';
 import '../db.dart';
 import '../ui.dart';
 import '../lang.dart';
+import '../auth_state.dart';
 import 'login.dart';
 import 'detail.dart';
 import 'settings.dart';
@@ -37,11 +38,16 @@ class _ProfileScreenState extends State<ProfileScreen>
   void initState() {
     super.initState();
     _tab = TabController(length: 4, vsync: this);
+    authUserNotifier.addListener(_onAuthChanged);
     _load();
   }
 
+  /// 登录/登出（任意板块）后，刷新本界面，解决跨板块登录态不刷新。
+  void _onAuthChanged() => _load();
+
   @override
   void dispose() {
+    authUserNotifier.removeListener(_onAuthChanged);
     _tab.dispose();
     super.dispose();
   }

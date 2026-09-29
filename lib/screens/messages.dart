@@ -3,6 +3,7 @@ import '../db.dart';
 import '../models.dart';
 import '../ui.dart';
 import '../lang.dart';
+import '../auth_state.dart';
 import 'chat.dart';
 import 'user_profile.dart';
 import 'login.dart';
@@ -30,7 +31,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   void initState() {
     super.initState();
+    authUserNotifier.addListener(_onAuthChanged);
     _load();
+  }
+
+  /// 登录/登出（任意板块）后，刷新本界面，解决跨板块登录态不刷新。
+  void _onAuthChanged() => _load();
+
+  @override
+  void dispose() {
+    authUserNotifier.removeListener(_onAuthChanged);
+    super.dispose();
   }
 
   Future<void> _load() async {

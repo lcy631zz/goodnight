@@ -27,7 +27,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _load();
   }
 
-  Future<void> _load() async => _u = await DB.currentUserModel();
+  Future<void> _load() async {
+    final u = await DB.currentUserModel();
+    if (mounted) setState(() => _u = u); // 必须 setState，否则角色永远显示兜底的"普通用户"
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -11,6 +11,7 @@ import 'lang.dart';
 import 'config/supabase_config.dart';
 import 'update_service.dart';
 import 'widgets/update_dialog.dart';
+import 'auth_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,10 +59,25 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    authUserNotifier.addListener(_onAuthChanged);
     DB.canReview().then((v) => setState(() => _canReview = v));
     _refreshUnread();
     // 启动后自动检查更新（首次构建完成后再弹窗，避免抢在首屏之前）
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkUpdate());
+  }
+
+  /// 登录/登出后实时刷新底部导航（未读角标、审核标签可见性）。
+  void _onAuthChanged() {
+    DB.canReview().then((v) {
+      if (mounted) setState(() => _canReview = v);
+    });
+    _refreshUnread();
+  }
+
+  @override
+  void dispose() {
+    authUserNotifier.removeListener(_onAuthChanged);
+    super.dispose();
   }
 
   /// 拉取远程版本信息，需要更新则弹出小红书风格更新页。
@@ -101,11 +117,11 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _goto(int i) async {
+    // 先立刻切页，不等网络——否则每次点标签都要等一次 Supabase 往返，非常卡。
+    if (mounted) setState(() => _tab = i);
+    // 角色/未读数在后台刷新，回来后再安静地更新 UI。
     final can = await DB.canReview();
-    if (mounted) setState(() {
-      _canReview = can;
-      _tab = i;
-    });
+    if (mounted && can != _canReview) setState(() => _canReview = can);
     _refreshUnread();
   }
 

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';
 import 'backend.dart';
+import 'auth_state.dart';
 
 /// 推荐排序的中间结果（帖子和推荐理由）。
 class _Scored {
@@ -384,6 +385,7 @@ class SupabaseBackend implements Backend {
         .maybeSingle();
     if (res == null) return false;
     await _setSessionUser(username);
+    authUserNotifier.value = username; // 广播登录事件，刷新所有依赖登录态的界面
     await _ensureAdmin(username);
     return true;
   }
@@ -397,7 +399,10 @@ class SupabaseBackend implements Backend {
   }
 
   @override
-  Future<void> logout() async => _setSessionUser(null);
+  Future<void> logout() async {
+    await _setSessionUser(null);
+    authUserNotifier.value = null; // 广播登出事件，刷新所有依赖登录态的界面
+  }
 
   @override
   Future<bool> changePassword(
