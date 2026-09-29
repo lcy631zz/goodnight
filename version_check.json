@@ -1,7 +1,7 @@
 {
-  "latestVersion": "1.0.0",
+  "latestVersion": "1.0.1",
   "minRequiredVersion": "1.0.0",
-  "downloadUrl": "https://github.com/lcy631zz/goodnight/releases/download/v1.0.0/goodnight.apk",
-  "releaseNotes": "· 新增应用内反馈通道（设置页 → 意见反馈）\n· 黑市板块可标记「已售出 / 卖掉了」，标记后不再被推荐\n· 移除自注册入口，账号仅由管理员创建\n· 修复登录与后端连接问题",
+  "downloadUrl": "https://github.com/lcy631zz/goodnight/releases/download/v1.0.1/goodnight.apk",
+  "releaseNotes": "· 修复登录态跨板块不共享（在「消息」登录后「我的」仍提示需登录）\n· 修复切换底部板块卡顿（不再每次切页都等网络）\n· 修复发布按钮无反应（增加加载态与失败提示）\n· 修复设置页账号角色永远显示「普通用户」\n· 新增应用内反馈通道（设置页 → 意见反馈）\n· 黑市板块可标记「已售出」，标记后不再被推荐\n· 移除自注册入口，账号仅由管理员创建",
   "forceUpdate": false
 }
