@@ -1,8 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'models.dart';
 import 'db.dart';
+// 条件导入：Web 用占位实现，VM(Android/桌面) 用 dart:io 的 FileImage。
+import 'file_image_vm.dart' if (dart.library.html) 'file_image_web.dart';
 
 /// 头像底色候选（与品牌色呼应）
 const List<String> avatarColors = [
@@ -42,8 +43,8 @@ Color parseColor(String hex) {
 
 /// 图片源自适应：http(s) 链接（Supabase Storage 返回的 URL）走网络图，
 /// 其余按本地文件路径处理（兼容旧数据 / Android 本地图）。
-ImageProvider adaptiveImage(String src) =>
-    src.startsWith('http') ? NetworkImage(src) : FileImage(File(src));
+ImageProvider<Object> adaptiveImage(String src) =>
+    src.startsWith('http') ? NetworkImage(src) : fileImageProvider(src);
 
 Widget buildAvatar({
   required String colorHex,
