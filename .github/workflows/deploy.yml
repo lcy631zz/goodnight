@@ -6,6 +6,7 @@
 #        User settings → Applications → Personal access tokens → New access token
 #   3. 在 GitHub 仓库 Settings → Secrets and variables → Actions 新增 **1 个** secret：
 #        NETLIFY_AUTH_TOKEN  = 上面的 Auth Token
+#   （粘贴时即使误带了换行/空格也没关系，工作流会自动剔除空白再使用。）
 #   填完之后，以后只要 git push 到 main，就会自动出网页并上线，不用再手拖。
 #
 # 注意：本仓库根目录就是 Flutter 项目根（lib/、pubspec.yaml 在顶层），
@@ -37,13 +38,23 @@ jobs:
       - name: Build web
         run: flutter build web --release
 
+      - name: Sanitize Netlify token
+        # GitHub 仓库 Secret 有时会被误带首尾换行/回车/空格（从终端或网页复制时很常见），
+        # 这些空白会让 Node 在设置 HTTP 头时报 “Is not a legal HTTP header value”。
+        # 这里先把 Secret 里的所有空白字符去掉，再写入 $GITHUB_ENV 供下一步使用，
+        # 即使你之前粘贴的 Secret 带了换行也能正常部署。
+        env:
+          RAW_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          TOKEN=$(printf '%s' "$RAW_TOKEN" | tr -d '[:space:]')
+          echo "NETLIFY_AUTH_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v3
         with:
           publish-dir: build/web
           production-deploy: true
         env:
-          # Auth Token 是敏感凭据，必须放仓库 Secret（Settings → Secrets and variables → Actions）
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           # Site ID 不是凭据（单有它、没有 token 也调不动 Netlify），直接内置，省得再配一个 secret
           NETLIFY_SITE_ID: e7d1aca1-c301-4777-872b-c3fa5b484293
+          # NETLIFY_AUTH_TOKEN 由上一步从 Secret 清洗后写入 $GITHUB_ENV，这里不再直接展开原始 Secret
