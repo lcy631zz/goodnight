@@ -42,6 +42,10 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
       if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      // 旧包没有这层捕获，登录请求一旦抛异常就表现为"点了没反应"。
+      // 现在把错误显示出来，便于区分是网络问题还是凭证问题。
+      if (mounted) setState(() => _err = '登录失败：${e.toString()}');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
