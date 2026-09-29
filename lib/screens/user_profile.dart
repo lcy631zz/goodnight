@@ -38,8 +38,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final me = await DB.getCurrentUser();
     _isMe = me == widget.username;
     final u = await DB.getUser(widget.username);
-    final all = await DB.allPosts();
-    final mine = all.where((p) => p.author == widget.username).toList();
+    final mine = await DB.postsByAuthor(widget.username);
     _isFriend = me != null && await DB.isFriend(me, widget.username);
     if (me != null) {
       _pending = (await DB.outgoingRequests(me))
@@ -285,13 +284,32 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('[${p.board}] ${p.title}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: textColor)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text('[${p.board}] ${p.title}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: textColor)),
+                      ),
+                      if (p.sold)
+                        Container(
+                          margin: const EdgeInsets.only(left: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text('已售',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey)),
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: 4),
                   Text('${t('点赞')} ${p.likes} · ${t('浏览')} ${p.views}',
                       style: const TextStyle(fontSize: 11, color: subColor)),

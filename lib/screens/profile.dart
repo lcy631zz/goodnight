@@ -53,7 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       return;
     }
     final model = await DB.getUser(me);
-    final mine = (await DB.allPosts()).where((p) => p.author == me).toList();
+    final mine = await DB.postsByAuthor(me);
     final liked = await DB.postsByIds(await DB.likedIds());
     final collected = await DB.postsByIds(await DB.collectedIds());
     final history = await DB.postsByIds(await DB.historyIds());
@@ -406,8 +406,27 @@ class _ProfileScreenState extends State<ProfileScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('[${p.board}] ${p.title}',
-                    style: const TextStyle(fontSize: 13, height: 1.5)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('[${p.board}] ${p.title}',
+                          style: const TextStyle(fontSize: 13, height: 1.5)),
+                    ),
+                    if (p.sold)
+                      Container(
+                        margin: const EdgeInsets.only(left: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text('已售',
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey)),
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 5),
                 Text('${t('浏览')} ${p.views} · ${t('点赞')} ${p.likes} · ${p.time}',
                     style: const TextStyle(fontSize: 11, color: subColor)),

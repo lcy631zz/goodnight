@@ -72,6 +72,7 @@ class Post {
   List<Comment> comments;
   final bool uncertain; // 机器人判定为"不确定"内容
   bool hidden; // 审核被删除
+  bool sold; // 黑市：是否已售出（仿闲鱼，售出后不再推荐）
   List<String> images; // 本地导入的图片路径（最多 9 张）
 
   Post({
@@ -90,9 +91,10 @@ class Post {
     this.shares = 0,
     this.time = '刚刚',
     this.comments = const [],
-    this.uncertain = false,
-    this.hidden = false,
-    this.images = const [],
+        this.uncertain = false,
+        this.hidden = false,
+        this.sold = false,
+        this.images = const [],
   });
 
   Map<String, dynamic> toMap() => {
@@ -113,6 +115,7 @@ class Post {
         'comments': Comment.listToJson(comments),
         'uncertain': uncertain ? 1 : 0,
         'hidden': hidden ? 1 : 0,
+        'sold': sold ? 1 : 0,
         'images': images,
       };
 
@@ -134,6 +137,7 @@ class Post {
         comments: Comment.listFromJson(m['comments'] as String? ?? ''),
         uncertain: (m['uncertain'] as int? ?? 0) == 1,
         hidden: (m['hidden'] as int? ?? 0) == 1,
+        sold: (m['sold'] as int? ?? 0) == 1,
         images: (m['images'] as List? ?? [])
             .map((e) => e as String)
             .toList(),

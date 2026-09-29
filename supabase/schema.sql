@@ -19,8 +19,12 @@ create table if not exists public.posts (
   hidden        boolean     default false,
   images        text[]      default '{}',
   time          text        default '刚刚',
+  sold          boolean     default false,
   created_at    timestamptz default now()
 );
+
+-- 黑市「已售出」标记（重复执行安全：表已存在时只补列，不报错）
+alter table public.posts add column if not exists sold boolean default false;
 
 -- 2) 用户（avatar_url 为头像图片 URL，替代原本地路径）
 create table if not exists public.users (

@@ -15,6 +15,8 @@ abstract class Backend {
   Future<int> insertPost(Post p);
   Future<void> updatePost(Post p);
   Future<void> hidePost(int id);
+  Future<void> setPostSold(int id, bool sold);
+  Future<List<Post>> postsByAuthor(String author);
   Future<void> removeComment(int postId, int commentId);
   Future<void> decorate(Post p);
   Future<List<({Post post, String reason})>> recommendFeed({String? me, String? board});

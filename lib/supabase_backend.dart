@@ -64,9 +64,10 @@ class SupabaseBackend implements Backend {
       'shares': r['shares'] ?? 0,
       'time': r['time'] ?? '刚刚',
       'comments': jsonEncode(comments),
-      'uncertain': (r['uncertain'] == true) ? 1 : 0,
-      'hidden': (r['hidden'] == true) ? 1 : 0,
-      'images': images,
+        'uncertain': (r['uncertain'] == true) ? 1 : 0,
+        'hidden': (r['hidden'] == true) ? 1 : 0,
+        'sold': (r['sold'] == true) ? 1 : 0,
+        'images': images,
     });
   }
 
@@ -84,6 +85,7 @@ class SupabaseBackend implements Backend {
         'comments': p.comments.map((c) => c.toJson()).toList(),
         'uncertain': p.uncertain,
         'hidden': p.hidden,
+        'sold': p.sold,
         'images': p.images,
         'time': p.time,
       };
@@ -142,6 +144,7 @@ class SupabaseBackend implements Backend {
         .from('posts')
         .select()
         .neq('hidden', true)
+        .neq('sold', true)
         .order('id', ascending: false);
     return (res as List)
         .map((e) => _rowToPost(e as Map<String, dynamic>))
@@ -183,6 +186,24 @@ class SupabaseBackend implements Backend {
       p.hidden = true;
       await updatePost(p);
     }
+  }
+
+  @override
+  Future<void> setPostSold(int id, bool sold) async {
+    await _sb.from('posts').update({'sold': sold}).eq('id', id);
+  }
+
+  @override
+  Future<List<Post>> postsByAuthor(String author) async {
+    final res = await _sb
+        .from('posts')
+        .select()
+        .eq('author', author)
+        .neq('hidden', true)
+        .order('id', ascending: false);
+    return (res as List)
+        .map((e) => _rowToPost(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override

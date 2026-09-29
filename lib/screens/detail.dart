@@ -40,6 +40,7 @@ class _DetailScreenState extends State<DetailScreen> {
   List<int>? _replyPath;
   List<String> _friends = [];
   bool _loadingFriends = true;
+  String? _me;
   final _ctrl = TextEditingController();
   final _focus = FocusNode();
 
@@ -47,11 +48,11 @@ class _DetailScreenState extends State<DetailScreen> {
   void initState() {
     super.initState();
     _p = widget.post;
-    if (_p.id != null) {
-      DB.getCurrentUser().then((me) {
-        if (me != null) DB.addHistory(_p.id!);
-      });
-    }
+    DB.getCurrentUser().then((me) {
+      _me = me;
+      if (me != null && _p.id != null) DB.addHistory(_p.id!);
+      if (mounted) setState(() {});
+    });
     _loadFriends();
   }
 
@@ -138,6 +139,68 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Future<void> _save() async => DB.updatePost(_p);
+
+  bool get _isAuthor => _me == _p.author;
+
+  /// 黑市贴主专属：标记已售出 / 重新上架（仿闲鱼）。
+  Widget _soldAction() {
+    final sold = _p.sold;
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _toggleSold,
+        icon: Icon(sold ? Icons.replay : Icons.check_circle_outline),
+        label: Text(sold ? t('重新上架') : t('标记已售出')),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: sold ? primary : Colors.orange),
+          foregroundColor: sold ? primary : Colors.orange,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggleSold() async {
+    if (_p.id == null) return;
+    final next = !_p.sold;
+    setState(() => _p.sold = next);
+    try {
+      await DB.setPostSold(_p.id!, next);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(next
+                ? t('已标记已售出，该商品不再被推荐')
+                : t('已重新上架'))));
+      }
+    } catch (e) {
+      setState(() => _p.sold = !next);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(t('操作失败，请检查网络'))));
+      }
+    }
+  }
+
+  /// 闲鱼风「已售出」印章浮层。
+  Widget _soldOverlay() => Center(
+        child: Transform.rotate(
+          angle: -0.3,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.white, width: 3),
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.black38,
+            ),
+            child: const Text('已售出',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ),
+      );
 
   Future<void> _toggleLike() async {
     final me = await DB.getCurrentUser();
@@ -367,63 +430,75 @@ class _DetailScreenState extends State<DetailScreen> {
                     SizedBox(
                       width: double.infinity,
                       height: 240,
-                      child: Image(
-                        image: adaptiveImage(_p.images.first),
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: bgColor,
-                          child: const Icon(Icons.broken_image,
-                              size: 40, color: subColor),
-                        ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image(
+                            image: adaptiveImage(_p.images.first),
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: bgColor,
+                              child: const Icon(Icons.broken_image,
+                                  size: 40, color: subColor),
+                            ),
+                          ),
+                          if (_p.sold) _soldOverlay(),
+                        ],
                       ),
                     )
                   else
-                    Container(
-                      height: 168,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [c, dark],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.22),
-                              borderRadius: BorderRadius.circular(999),
+                    Stack(
+                      children: [
+                        Container(
+                          height: 168,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [c, dark],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                            child: Text(_p.board,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600)),
                           ),
-                          const SizedBox(height: 10),
-                          Expanded(
-                            child: Text(_p.title,
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    height: 1.3)),
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.22),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(_p.board,
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600)),
+                              ),
+                              const SizedBox(height: 10),
+                              Expanded(
+                                child: Text(_p.title,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w800,
+                                        height: 1.3)),
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Text(_boardEmojiOf(_p.board),
+                                    style: TextStyle(
+                                        fontSize: 44,
+                                        color: Colors.white
+                                            .withOpacity(0.22))),
+                              ),
+                            ],
                           ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: Text(_boardEmojiOf(_p.board),
-                                style: TextStyle(
-                                    fontSize: 44,
-                                    color: Colors.white.withOpacity(0.22))),
-                          ),
-                        ],
-                      ),
+                        ),
+                        if (_p.sold) _soldOverlay(),
+                      ],
                     ),
                   Padding(
                     padding: const EdgeInsets.all(16),
@@ -472,6 +547,10 @@ class _DetailScreenState extends State<DetailScreen> {
                               ),
                           ],
                         ),
+                        if (_isAuthor && _p.board == '黑市') ...[
+                          const SizedBox(height: 10),
+                          _soldAction(),
+                        ],
                         if (_p.images.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Text(_p.title,
