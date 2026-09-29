@@ -22,7 +22,13 @@ insert into public.users (username, role, password_hash, avatar_emoji, avatar_co
 values
   ('小ye',  'admin', '74c09be2', '🌙', '#3B6FE0'),
   ('MS100', 'user',  '37eef629', '🎓', '#F25C7E')
-on conflict (username) do nothing;
+-- 用 do update 而不是 do nothing：即使账号已存在（例如曾被手改成明文密码），
+-- 重跑本脚本也会把 role / password_hash / 头像修正回来。
+on conflict (username) do update
+  set role          = excluded.role,
+      password_hash = excluded.password_hash,
+      avatar_emoji  = excluded.avatar_emoji,
+      avatar_color  = excluded.avatar_color;
 
 insert into public.user_meta (username, liked, collected, history)
 values
