@@ -6,3 +6,46 @@ publish = "build/web"
 from = "/*"
 to = "/index.html"
 status = 200
+
+# 缓存策略：入口文件每次请求都向服务器校验是否有新版，
+# 资源文件（内容带哈希，改不了旧路径）长期缓存。
+# 效果：发新版后浏览器会自动拉取新代码，无需用户手动清缓存。
+[[headers]]
+for = "/index.html"
+[headers.values]
+Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+for = "/flutter_bootstrap.js"
+[headers.values]
+Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+for = "/main.dart.js"
+[headers.values]
+Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+for = "/flutter.js"
+[headers.values]
+Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+for = "/assets/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/_flutter/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/canvaskit/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/icons/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"

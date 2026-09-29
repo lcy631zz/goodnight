@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _user = TextEditingController();
   final _pass = TextEditingController();
   String? _err;
+  bool _loading = false; // 登录中显示转圈，防止重复点击
 
   void _submit() async {
     final u = _user.text.trim();
@@ -33,12 +34,17 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _err = '密码至少 6 位');
       return;
     }
-    final ok = await DB.login(u, p);
-    if (!ok) {
-      setState(() => _err = '用户名或密码错误');
-      return;
+    setState(() => _loading = true);
+    try {
+      final ok = await DB.login(u, p);
+      if (!ok) {
+        setState(() => _err = '用户名或密码错误');
+        return;
+      }
+      if (mounted) Navigator.pop(context, true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-    if (mounted) Navigator.pop(context, true);
   }
 
   @override
@@ -77,15 +83,22 @@ class _LoginScreenState extends State<LoginScreen> {
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: _submit,
+                onPressed: _loading ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primary,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('登录',
-                    style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.bold)),
+                child: _loading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.4, color: Colors.white),
+                      )
+                    : const Text('登录',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.bold)),
               ),
             ),
           ],

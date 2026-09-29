@@ -386,16 +386,7 @@ class SupabaseBackend implements Backend {
     if (res == null) return false;
     await _setSessionUser(username);
     authUserNotifier.value = username; // 广播登录事件，刷新所有依赖登录态的界面
-    await _ensureAdmin(username);
     return true;
-  }
-
-  /// 若系统里还没有任何管理员，则把当前注册账号提升为管理员。
-  Future<void> _ensureAdmin(String username) async {
-    final res =
-        await _sb.from('users').select('username').eq('role', 'admin').limit(1);
-    if ((res as List).isNotEmpty) return;
-    await _sb.from('users').update({'role': 'admin'}).eq('username', username);
   }
 
   @override
