@@ -10,12 +10,11 @@
 /// 模板见仓库根目录的 version_check.json（改完再提交）。
 const String kCurrentVersion = '1.0.0';
 
-/// version_check.json 的远程地址（必须改成你自己的，否则永远检测不到更新）
-/// 做法：把 version_check.json 提交到你的 GitHub 仓库，再用它的 raw 链接：
-///   https://raw.githubusercontent.com/<你的用户名>/<你的仓库>/main/version_check.json
-/// 注意：GitHub 新仓库默认分支是 main；若你的仓库分支叫 master，把末尾的 main 改成 master。
+/// version_check.json 的远程地址（已替换为真实仓库）
+/// 已改为：GitHub 账号 lcy631zz，仓库名 goodnight，分支 main。
+/// 若你建仓库时用了别的名字，把下面 lcy631zz/goodnight 改掉即可。
 const String kVersionCheckUrl =
-    'https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/version_check.json';
+    'https://raw.githubusercontent.com/lcy631zz/goodnight/main/version_check.json';
 
 /// 必须与 Android 端 MainActivity.kt 里的 CHANNEL 字符串保持一致
 const String kAppUpdateChannel = 'com.goodnight.goodnight/app_update';
