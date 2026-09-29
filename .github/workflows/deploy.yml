@@ -1,13 +1,11 @@
 # goodnight 网页自动部署到 Netlify（GitHub Actions）
 #
-# 激活方式（都需要登录你自己的账号，我无法代做）：
-#   1. 把 goodnight/ 这个目录推到 GitHub 仓库的 main 分支。
-#   2. 在 Netlify 建一个站点，拿到：
-#        - User Settings → Access tokens → 新建一个 Auth Token
-#        - 站点设置里的 Site ID
-#   3. 在 GitHub 仓库 Settings → Secrets and variables → Actions 里新增两个 secret：
+# 激活方式（只需你登录自己的账号做一步，Site ID 已内置，无需再配）：
+#   1. 代码推到 GitHub 仓库的 main 分支（已完成）。
+#   2. 在 Netlify 生成一个 Auth Token：
+#        User settings → Applications → Personal access tokens → New access token
+#   3. 在 GitHub 仓库 Settings → Secrets and variables → Actions 新增 **1 个** secret：
 #        NETLIFY_AUTH_TOKEN  = 上面的 Auth Token
-#        NETLIFY_SITE_ID    = 上面的 Site ID
 #   填完之后，以后只要 git push 到 main，就会自动出网页并上线，不用再手拖。
 #
 # 注意：本仓库根目录就是 Flutter 项目根（lib/、pubspec.yaml 在顶层），
@@ -45,5 +43,7 @@ jobs:
           publish-dir: build/web
           production-deploy: true
         env:
+          # Auth Token 是敏感凭据，必须放仓库 Secret（Settings → Secrets and variables → Actions）
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          # Site ID 不是凭据（单有它、没有 token 也调不动 Netlify），直接内置，省得再配一个 secret
+          NETLIFY_SITE_ID: e7d1aca1-c301-4777-872b-c3fa5b484293
