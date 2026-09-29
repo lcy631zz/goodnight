@@ -10,7 +10,8 @@
 #        NETLIFY_SITE_ID    = 上面的 Site ID
 #   填完之后，以后只要 git push 到 main，就会自动出网页并上线，不用再手拖。
 #
-# 注意：本仓库的 Flutter 项目在 goodnight/ 子目录，所以构建和发布路径都带 goodnight/ 前缀。
+# 注意：本仓库根目录就是 Flutter 项目根（lib/、pubspec.yaml 在顶层），
+# 所以构建与发布路径都不带任何子目录前缀。
 
 name: Deploy goodnight web
 
@@ -33,15 +34,15 @@ jobs:
           channel: stable
 
       - name: Get dependencies
-        run: cd goodnight && flutter pub get
+        run: flutter pub get
 
       - name: Build web
-        run: cd goodnight && flutter build web --release
+        run: flutter build web --release
 
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v3
         with:
-          publish-dir: goodnight/build/web
+          publish-dir: build/web
           production-deploy: true
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
