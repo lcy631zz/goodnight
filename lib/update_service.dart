@@ -50,7 +50,7 @@ Future<UpdateInfo?> fetchLatestVersion() async {
         .timeout(const Duration(seconds: 8));
     if (res.statusCode != 200) return null;
     final j = jsonDecode(res.body);
-    if (j is! Map) return null;
+    if (j is! Map<String, dynamic>) return null;
     final info = UpdateInfo.fromJson(j);
     if (info.latestVersion.isEmpty || info.downloadUrl.isEmpty) return null;
     return info;
