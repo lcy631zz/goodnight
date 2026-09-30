@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 下载的更新包放在 getExternalFilesDir()/updates 下，对应此配置 -->
+    <external-files-path
+        name="updates"
+        path="updates" />
+</paths>
