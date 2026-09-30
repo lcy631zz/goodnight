@@ -58,21 +58,27 @@ class _ProfileScreenState extends State<ProfileScreen>
       if (mounted) setState(() => _me = null);
       return;
     }
-    final model = await DB.getUser(me);
-    final mine = await DB.postsByAuthor(me);
-    final liked = await DB.postsByIds(await DB.likedIds());
-    final collected = await DB.postsByIds(await DB.collectedIds());
-    final history = await DB.postsByIds(await DB.historyIds());
-    if (mounted) {
-      setState(() {
-        _me = me;
-        _meModel = model;
-        _mine = mine;
-        _liked = liked;
-        _collected = collected;
-        _history = history;
-        _totalLikes = mine.fold(0, (n, p) => n + p.likes);
-      });
+    // 先把"已登录"状态立起来：即便下面的详情查询偶发失败，也不会再卡在"需要登录"。
+    if (mounted) setState(() => _me = me);
+    try {
+      final model = await DB.getUser(me);
+      final mine = await DB.postsByAuthor(me);
+      final liked = await DB.postsByIds(await DB.likedIds());
+      final collected = await DB.postsByIds(await DB.collectedIds());
+      final history = await DB.postsByIds(await DB.historyIds());
+      if (mounted) {
+        setState(() {
+          _meModel = model;
+          _mine = mine;
+          _liked = liked;
+          _collected = collected;
+          _history = history;
+          _totalLikes = mine.fold(0, (n, p) => n + p.likes);
+        });
+      }
+    } catch (e) {
+      // 详情加载失败时保持已登录外壳（_me 已设置），不弹"需要登录"。
+      if (mounted) setState(() => _meModel = _meModel);
     }
   }
 
@@ -94,7 +100,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   Widget build(BuildContext context) {
     if (_me == null) return _loggedOut();
-    final u = _meModel!;
+    // 已登录：即使详情查询尚未完成或偶发失败，也用「兜底 User」渲染可用页面，
+    // 绝不回退到"需要登录"，也不卡在转圈。详情到达后 _meModel 被赋值，自动刷新为完整页。
+    final u = _meModel ?? User(username: _me!, role: 'user', password: '');
     return Scaffold(
       appBar: AppBar(
         title: Text(t('我的')),

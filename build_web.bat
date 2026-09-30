@@ -1,9 +1,9 @@
 @echo off
 REM ============================================================
-REM  goodnight forum - one-click Flutter Web build script
+REM  goodnight forum - one-click Flutter Web build script (本地构建)
 REM  Usage: close WorkBuddy, then double-click this file.
-REM  After the build finishes, the build/web folder opens.
-REM  Drag that whole folder into Netlify (drop page) to go live.
+REM  仅用于本地生成网页产物（build/web）。部署请 git push 到 main，
+REM  GitHub Actions 会自动构建并上线到 Netlify，无需手动拖拽。
 REM ============================================================
 REM Self-protection: if not a persistent console, relaunch self
 REM in a cmd /k window so it never flashes away (errors stay visible).
@@ -58,22 +58,20 @@ echo [%TIME%] [3/4] flutter build web --release (first run may take minutes)...
 call flutter build web --release >> "%LOG%" 2>&1
 if errorlevel 1 goto :fail
 
-REM 4. deliver: open the folder so you can drag it to Netlify
+REM 4. deliver: 确认产物并复制 SPA 跳转规则（仅本地构建，部署走 GitHub Actions 自动上线）
 if exist "%OUT%\index.html" (
   echo [%TIME%] BUILD_OK >> "%LOG%"
   echo.
   echo ============================================================
-  echo   SUCCESS! Website files are at:
+  echo   BUILD SUCCESS! Website files are at:
   echo   %OUT%
   echo.
-  echo   Next: drag that whole folder into Netlify
-  echo   https://app.netlify.com/drop  ->  your site goes live.
+  echo   部署方式：本仓库已接入 GitHub Actions 自动部署。
+  echo   把代码 git push 到 main 分支，Netlify 会自动重新构建并上线，
+  echo   无需再手动拖拽。线上地址：https://goodnight12.netlify.app
   echo ============================================================
-  REM copy SPA redirect rules so deep links work on Netlify
+  REM copy SPA redirect rules so deep links work if served locally
   copy /Y "%~dp0_redirects" "%OUT%\_redirects" >nul 2>nul
-  explorer "%OUT%"
-  echo Opening Netlify drop page in your browser...
-  start https://app.netlify.com/drop
   goto :end
 ) else (
   goto :fail

@@ -67,9 +67,30 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   /// 登录/登出后实时刷新底部导航（未读角标、审核标签可见性）。
+  /// 注意：审核标签出现/消失会改变各页在 IndexedStack 里的索引，
+  /// 必须把当前选中的「语义页」重新对齐到新索引，否则管理员登录后会
+  /// 从「我的」误跳到「审核」（小ye 就是管理员，正好踩这个坑）。
   void _onAuthChanged() {
+    final prevTab = _tab;
     DB.canReview().then((v) {
-      if (mounted) setState(() => _canReview = v);
+      if (!mounted) return;
+      var tab = prevTab;
+      if (v != _canReview) {
+        if (v) {
+          // 由「无审核」切到「有审核」：原「我的」(2) 后移到 3。
+          if (prevTab == 2) tab = 3;
+        } else {
+          // 由「有审核」切到「无审核」：原「我的」(3) 前移到 2；原「审核」(2) 落到「消息」(1)。
+          if (prevTab == 3) tab = 2;
+          if (prevTab == 2) tab = 1;
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _canReview = v;
+          _tab = tab;
+        });
+      }
     });
     _refreshUnread();
   }
@@ -92,17 +113,21 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   /// 标签顺序：0 首页, 1 消息, (2 审核 管理员或审核员), 末位 我的
+  /// 给每个页面固定 Key：IndexedStack 用 Key 而非位置来匹配，
+  /// 这样管理员登录后插入「审核」页时，ProfileScreen 的状态不会被重建丢失。
   List<Widget> _buildStack() {
     final list = <Widget>[
       HomeScreen(key: _homeKey, onPublish: _openPublish),
-      const MessagesScreen(),
+      const MessagesScreen(key: Key('messages')),
     ];
-    if (_canReview) list.add(const ReviewScreen());
-    list.add(const ProfileScreen());
+    if (_canReview) {
+      list.add(const ReviewScreen(key: Key('review')));
+    }
+    list.add(const ProfileScreen(key: Key('profile')));
     return list;
   }
 
-  int get _profileIndex => _buildStack().length - 1;
+  int get _profileIndex => _canReview ? 3 : 2;
   int get _messagesIndex => 1;
   int get _reviewIndex => _canReview ? 2 : -1;
 
