@@ -25,6 +25,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # GitHub 免费 runner 只有 7GB 内存，release 模式 dart2js 容易 OOM 把
+      # “Build web” 步骤打红。开 4G 交换分区把可用内存撑起来，避免构建被系统杀掉。
+      - name: Add swap space (avoid dart2js OOM on free runner)
+        run: |
+          sudo fallocate -l 4G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -35,8 +44,9 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      # --no-source-maps 进一步降低 dart2js 峰值内存与构建耗时
       - name: Build web
-        run: flutter build web --release
+        run: flutter build web --release --no-source-maps
 
       - name: Sanitize Netlify token
         # GitHub 仓库 Secret 有时会被误带首尾换行/回车/空格（从终端或网页复制时很常见），
