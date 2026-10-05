@@ -22,6 +22,7 @@ class Comment {
     this.uncertain = false,
     this.imagePath,
     this.sticker,
+    this.authorLiked = false,
   }) : id = id ?? genId();
 
   factory Comment.fromJson(Map<String, dynamic> j) => Comment(
@@ -31,6 +32,9 @@ class Comment {
         uncertain: (j['uncertain'] as int? ?? 0) == 1,
         imagePath: j['imagePath'] as String?,
         sticker: j['sticker'] as String?,
+        authorLiked: j['authorLiked'] is bool
+            ? j['authorLiked'] as bool
+            : (j['authorLiked'] as int? ?? 0) == 1,
         replies: (j['replies'] as List? ?? [])
             .map((e) => Comment.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -43,6 +47,7 @@ class Comment {
         'uncertain': uncertain ? 1 : 0,
         'imagePath': imagePath,
         'sticker': sticker,
+        'authorLiked': authorLiked,
         'replies': replies.map((e) => e.toJson()).toList(),
       };
 

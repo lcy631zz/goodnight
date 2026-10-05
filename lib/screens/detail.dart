@@ -321,7 +321,8 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  /// 删除自己的评论（含其下所有回复）。乐观删除，落库失败则从服务端恢复并提示。
+  /// 删除评论（发布者/管理员可删任意评论，评论作者也可删自己那条；含其下所有回复）。
+  /// 乐观删除，落库失败则从服务端恢复并提示。
   Future<void> _deleteComment(Comment c) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -491,7 +492,62 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+  /// 某条评论是否含有「发布者（帖子作者）的回复」。
+  bool _authorRepliedTo(Comment c) =>
+      c.replies.any((r) => r.name == _p.author);
+
+  /// 顶部评论排序：发布者赞过 / 回复过的评论置顶；返回 _p.comments 原始索引，
+  /// 保证回复 path 仍指向正确节点。
+  List<int> _topOrder() {
+    final eng = <int>[];
+    final rest = <int>[];
+    for (int i = 0; i < _p.comments.length; i++) {
+      final c = _p.comments[i];
+      if (c.authorLiked || _authorRepliedTo(c)) {
+        eng.add(i);
+      } else {
+        rest.add(i);
+      }
+    }
+    return [...eng, ...rest];
+  }
+
+  /// 小标签（置顶 / 作者赞过 等）。
+  Widget _tag(String label, Color fg, Color bg) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(label, style: TextStyle(fontSize: 10, color: fg)),
+      );
+
+  /// 发布者点赞 / 取消点赞某条评论（只记录发布者，用于「作者赞过」标注 + 置顶）。
+  Future<void> _toggleCommentLike(Comment c) async {
+    setState(() => c.authorLiked = !c.authorLiked);
+    try {
+      await DB.updatePost(_p);
+      final fresh = await DB.postById(_p.id!, includeHidden: true);
+      if (fresh != null && mounted) _p = fresh;
+      if (mounted) setState(() {});
+    } catch (e) {
+      setState(() => c.authorLiked = !c.authorLiked); // 回滚
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${t('操作失败')}：${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  /// 谁能删这条评论：发布者（帖子作者）/ 管理员可删任意评论；评论作者也能删自己的。
+  bool _canDeleteComment(Comment c) => _canDelete || c.name == _me;
+
   Widget _comment(Comment c, List<int> path) {
+    final topLevel = path.isEmpty;
+    final isOp = c.name == _p.author;
+    final opReplied = _authorRepliedTo(c);
+    final pinned = topLevel && (c.authorLiked || opReplied);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -519,7 +575,23 @@ class _DetailScreenState extends State<DetailScreen> {
                             text: c.name,
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold, color: primary)),
-                        TextSpan(text: '  '),
+                        if (isOp) ...[
+                          const WidgetSpan(child: SizedBox(width: 4)),
+                          WidgetSpan(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: primary,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text('作者',
+                                  style: TextStyle(
+                                      fontSize: 9, color: Colors.white)),
+                            ),
+                          ),
+                        ],
+                        const WidgetSpan(child: SizedBox(width: 4)),
                         WidgetSpan(child: _commentContent(c)),
                         if (c.uncertain)
                           TextSpan(
@@ -530,38 +602,57 @@ class _DetailScreenState extends State<DetailScreen> {
                       ],
                     ),
                   ),
-                  Row(
+                  Wrap(
+                    spacing: 14,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       GestureDetector(
                         onTap: () => _setReply(path, c.name),
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(t('回复'),
-                              style: const TextStyle(
-                                  color: primary, fontSize: 11)),
-                        ),
+                        child: Text(t('回复'),
+                            style: const TextStyle(
+                                color: primary, fontSize: 11)),
                       ),
-                      const SizedBox(width: 14),
-                      // 自己的评论可删除；别人的评论可举报（需已登录）
-                      if (_me != null && c.name == _me)
+                      if (pinned)
+                        _tag(t('置顶'), Colors.grey.shade700,
+                            Colors.grey.shade200),
+                      if (c.authorLiked)
+                        _tag('❤ ${t('作者赞过')}', likeColor,
+                            likeColor.withOpacity(0.12)),
+                      if (_isAuthor)
+                        GestureDetector(
+                          onTap: () => _toggleCommentLike(c),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                  c.authorLiked
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  size: 13,
+                                  color: c.authorLiked
+                                      ? likeColor
+                                      : subColor),
+                              const SizedBox(width: 3),
+                              Text(t('赞'),
+                                  style: TextStyle(
+                                      fontSize: 11, color: subColor)),
+                            ],
+                          ),
+                        ),
+                      if (_canDeleteComment(c))
                         GestureDetector(
                           onTap: () => _deleteComment(c),
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(t('删除'),
-                                style: const TextStyle(
-                                    color: Colors.redAccent, fontSize: 11)),
-                          ),
+                          child: Text(t('删除'),
+                              style: const TextStyle(
+                                  color: Colors.redAccent, fontSize: 11)),
                         )
                       else if (_me != null)
                         GestureDetector(
                           onTap: () => _reportComment(c),
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(t('举报'),
-                                style: const TextStyle(
-                                    color: subColor, fontSize: 11)),
-                          ),
+                          child: Text(t('举报'),
+                              style: const TextStyle(
+                                  color: subColor, fontSize: 11)),
                         ),
                     ],
                   ),
@@ -807,8 +898,8 @@ class _DetailScreenState extends State<DetailScreen> {
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 13)),
                         const SizedBox(height: 4),
-                        ..._p.comments.asMap().entries.map((e) {
-                          return _comment(e.value, [e.key]);
+                        ..._topOrder().map((i) {
+                          return _comment(_p.comments[i], [i]);
                         }).toList(),
                       ],
                     ),
