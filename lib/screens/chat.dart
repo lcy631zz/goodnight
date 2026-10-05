@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models.dart';
 import '../db.dart';
@@ -24,11 +25,30 @@ class _ChatScreenState extends State<ChatScreen> {
   List<String> _friends = [];
   String _me = '';
   final _scroll = ScrollController();
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // 实时刷新：每 4 秒拉取一次会话消息并消除未读（无后台推送时的折中方案）
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) => _refresh());
+  }
+
+  /// 轻量刷新：仅在新消息到达（数量或末尾 id 变化）时重建列表并滚到底部。
+  Future<void> _refresh() async {
+    if (_me.isEmpty || !mounted) return;
+    final msgs = await DB.messagesBetween(_me, widget.peer);
+    await DB.markRead(_me, widget.peer);
+    if (!mounted) return;
+    final changed = msgs.length != _msgs.length ||
+        (msgs.isNotEmpty &&
+            _msgs.isNotEmpty &&
+            msgs.last.id != _msgs.last.id);
+    if (changed) {
+      setState(() => _msgs = msgs);
+      _scrollToEnd();
+    }
   }
 
   Future<void> _load() async {
@@ -52,6 +72,12 @@ class _ChatScreenState extends State<ChatScreen> {
         _scroll.jumpTo(_scroll.position.maxScrollExtent);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   Future<void> _send(

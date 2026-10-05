@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../db.dart';
 import '../models.dart';
@@ -27,12 +28,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
   List<FriendRequest> _outgoing = [];
   String? _me;
   bool _loading = true;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     authUserNotifier.addListener(_onAuthChanged);
     _load();
+    // 实时刷新：每 5 秒拉取会话/未读/好友请求（无后台推送时的折中方案）
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) => _load());
   }
 
   /// 登录/登出（任意板块）后，刷新本界面，解决跨板块登录态不刷新。
@@ -40,6 +44,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   void dispose() {
+    _timer?.cancel();
     authUserNotifier.removeListener(_onAuthChanged);
     super.dispose();
   }
