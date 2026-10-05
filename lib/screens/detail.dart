@@ -8,6 +8,7 @@ import 'login.dart';
 import 'user_profile.dart';
 import '../widgets/compose.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
 
 const primary = Color(0xFF3B6FE0);
 const textColor = Color(0xFF1F2330);
@@ -590,6 +591,13 @@ class _DetailScreenState extends State<DetailScreen> {
                             }).toList(),
                           ),
                         ],
+                        if (_p.videos.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ..._p.videos.map((v) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: PostVideoPlayer(url: v),
+                              )),
+                        ],
                         const SizedBox(height: 14),
                         Text('${t('评论')} ${_count(_p.comments)}',
                             style: const TextStyle(
@@ -748,5 +756,75 @@ class _DetailScreenState extends State<DetailScreen> {
     if (txt.isEmpty) return;
     await _send(text: txt);
     _ctrl.clear();
+  }
+}
+
+/// 帖子里的视频播放器：初始化完成后内联播放，点击中央按钮暂停/播放。
+class PostVideoPlayer extends StatefulWidget {
+  final String url;
+  const PostVideoPlayer({super.key, required this.url});
+  @override
+  State<PostVideoPlayer> createState() => _PostVideoPlayerState();
+}
+
+class _PostVideoPlayerState extends State<PostVideoPlayer> {
+  late VideoPlayerController _c;
+  bool _ready = false;
+  bool _playing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) {
+        if (mounted) setState(() => _ready = true);
+      });
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_ready) {
+      return const SizedBox(
+        height: 220,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return AspectRatio(
+      aspectRatio: _c.value.aspectRatio,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          VideoPlayer(_c),
+          GestureDetector(
+            onTap: () {
+              if (_playing) {
+                _c.pause();
+              } else {
+                _c.play();
+              }
+              setState(() => _playing = !_playing);
+            },
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.black38,
+                shape: BoxShape.circle,
+              ),
+              padding: const EdgeInsets.all(12),
+              child: Icon(
+                _playing ? Icons.pause : Icons.play_arrow,
+                color: Colors.white,
+                size: 36,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -177,6 +177,7 @@ class HomeScreenState extends State<HomeScreen> {
       (c.blue - 40).clamp(0, 255),
     );
     final hasImg = p.images.isNotEmpty;
+    final hasVid = p.videos.isNotEmpty;
     final coverH = hasImg ? (100 + ((p.id ?? 0) % 5) * 12).toDouble() : 132.0;
     final reason = _board.isEmpty ? (_reasons[p.id] ?? '') : '';
     return GestureDetector(
@@ -192,72 +193,83 @@ class HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              height: coverH,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                image: hasImg
-                    ? DecorationImage(
-                        image: adaptiveImage(p.images.first),
-                        fit: BoxFit.cover)
-                    : null,
-                gradient: hasImg
-                    ? null
-                    : LinearGradient(
-                        colors: [c, dark],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-              ),
-              alignment: Alignment.bottomLeft,
-              padding: hasImg ? const EdgeInsets.all(8) : const EdgeInsets.all(12),
-              child: hasImg
-                  ? Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.transparent, Colors.black45],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ),
-                      ),
-                      alignment: Alignment.bottomLeft,
-                      child: Text(p.imageCaption,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600)),
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.22),
-                            borderRadius: BorderRadius.circular(999),
+            Stack(
+              children: [
+                Container(
+                  height: coverH,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    image: hasImg
+                        ? DecorationImage(
+                            image: adaptiveImage(p.images.first),
+                            fit: BoxFit.cover)
+                        : null,
+                    gradient: hasImg
+                        ? null
+                        : LinearGradient(
+                            colors: [c, dark],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          child: Text(p.board,
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-                        ),
-                        const SizedBox(height: 8),
-                        Expanded(
-                          child: Text(p.title,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
+                  ),
+                  alignment: Alignment.bottomLeft,
+                  padding: hasImg ? const EdgeInsets.all(8) : const EdgeInsets.all(12),
+                  child: hasImg
+                      ? Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.transparent, Colors.black45],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                          alignment: Alignment.bottomLeft,
+                          child: Text(p.imageCaption,
                               style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.3)),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.22),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(p.board,
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: Text(p.title,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      height: 1.3)),
+                            ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(_boardEmoji[p.board] ?? '📌',
+                                  style: TextStyle(fontSize: 40, color: Colors.white.withOpacity(0.22))),
+                            ),
+                          ],
                         ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(_boardEmoji[p.board] ?? '📌',
-                              style: TextStyle(fontSize: 40, color: Colors.white.withOpacity(0.22))),
-                        ),
-                      ],
+                ),
+                if (hasVid)
+                  const Positioned.fill(
+                    child: Center(
+                      child: Icon(Icons.play_circle_fill,
+                          color: Colors.white, size: 44),
                     ),
+                  ),
+              ],
             ),
             if (reason.isNotEmpty)
               Container(

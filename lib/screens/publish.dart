@@ -24,6 +24,7 @@ class _PublishScreenState extends State<PublishScreen> {
   final _content = TextEditingController();
   late String _board;
   final List<String> _imgPaths = [];
+  final List<String> _videoPaths = [];
   bool _publishing = false; // 防止重复点击；发布中显示转圈
   final _boards = const ['校园圈', '黑市', '拼车', '招募', '招领', '问答'];
   static const _colors = {
@@ -52,6 +53,13 @@ class _PublishScreenState extends State<PublishScreen> {
   }
 
   void _removeImg(int i) => setState(() => _imgPaths.removeAt(i));
+
+  Future<void> _addVideo() async {
+    if (_videoPaths.length >= 3) return; // 最多 3 个视频
+    final p = await pickAndSaveVideo(
+        ImageSource.gallery, 'post_v_${DateTime.now().microsecondsSinceEpoch}');
+    if (p != null) setState(() => _videoPaths.add(p));
+  }
 
   Future<void> _publish() async {
     if (_publishing) return; // 发布进行中，忽略重复点击
@@ -86,6 +94,7 @@ class _PublishScreenState extends State<PublishScreen> {
         comments: const [],
         uncertain: uncertain,
         images: List.from(_imgPaths),
+        videos: List.from(_videoPaths),
       );
       await DB.insertPost(post);
       if (uncertain && post.id != null) {
@@ -184,6 +193,49 @@ class _PublishScreenState extends State<PublishScreen> {
                   ),
               ],
             ),
+            if (_videoPaths.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _videoPaths.map((v) {
+                    return Stack(
+                      children: [
+                        Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.play_circle_fill,
+                                color: Colors.white, size: 36),
+                          ),
+                        ),
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: GestureDetector(
+                            onTap: () =>
+                                setState(() => _videoPaths.remove(v)),
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close,
+                                  size: 14, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
             const SizedBox(height: 14),
             TextField(
               controller: _title,
@@ -229,6 +281,7 @@ class _PublishScreenState extends State<PublishScreen> {
                         _content.text = '$t0@$n ';
                       });
                     }),
+                _tool(Icons.videocam, t('视频'), _addVideo),
               ],
             ),
             const SizedBox(height: 12),

@@ -73,7 +73,8 @@ class Post {
   final bool uncertain; // 机器人判定为"不确定"内容
   bool hidden; // 审核被删除
   bool sold; // 黑市：是否已售出（仿闲鱼，售出后不再推荐）
-  List<String> images; // 本地导入的图片路径（最多 9 张）
+  List<String> images; // 已上传到 Storage 的公有 URL（最多 9 张）
+  List<String> videos; // 已上传到 Storage 的视频公有 URL 列表
 
   Post({
     this.id,
@@ -95,6 +96,7 @@ class Post {
         this.hidden = false,
         this.sold = false,
         this.images = const [],
+        this.videos = const [],
   });
 
   Map<String, dynamic> toMap() => {
@@ -117,6 +119,7 @@ class Post {
         'hidden': hidden ? 1 : 0,
         'sold': sold ? 1 : 0,
         'images': images,
+        'videos': videos,
       };
 
   factory Post.fromMap(Map<String, dynamic> m) => Post(
@@ -139,6 +142,9 @@ class Post {
         hidden: (m['hidden'] as int? ?? 0) == 1,
         sold: (m['sold'] as int? ?? 0) == 1,
         images: (m['images'] as List? ?? [])
+            .map((e) => e as String)
+            .toList(),
+        videos: (m['videos'] as List? ?? [])
             .map((e) => e as String)
             .toList(),
       );

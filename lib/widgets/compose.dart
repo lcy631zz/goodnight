@@ -35,6 +35,26 @@ Future<String?> pickAndSaveImage(ImageSource source, String name) async {
   }
 }
 
+/// 选视频并上传到 Supabase Storage 的 media 桶，返回公有 URL；取消或失败返回 null。
+Future<String?> pickAndSaveVideo(ImageSource source, String name) async {
+  try {
+    final x = await ImagePicker().pickVideo(source: source);
+    if (x == null) return null;
+    final bytes = await x.readAsBytes();
+    final ext =
+        x.name.contains('.') ? x.name.split('.').last.toLowerCase() : 'mp4';
+    final path = '$name.$ext';
+    await Supabase.instance.client.storage.from('media').uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(upsert: true, contentType: 'video/$ext'),
+        );
+    return Supabase.instance.client.storage.from('media').getPublicUrl(path);
+  } catch (_) {
+    return null;
+  }
+}
+
 /// emoji 选择面板
 void showEmojiSheet(BuildContext context, void Function(String) onPick) {
   showModalBottomSheet(

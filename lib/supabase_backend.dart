@@ -49,6 +49,9 @@ class SupabaseBackend implements Backend {
     final images = (r['images'] is List ? r['images'] as List : const [])
         .map((e) => e.toString())
         .toList();
+    final videos = (r['videos'] is List ? r['videos'] as List : const [])
+        .map((e) => e.toString())
+        .toList();
     return Post.fromMap({
       'id': r['id'],
       'board': r['board'],
@@ -66,9 +69,10 @@ class SupabaseBackend implements Backend {
       'time': r['time'] ?? '刚刚',
       'comments': jsonEncode(comments),
         'uncertain': (r['uncertain'] == true) ? 1 : 0,
-        'hidden': (r['hidden'] == true) ? 1 : 0,
-        'sold': (r['sold'] == true) ? 1 : 0,
-        'images': images,
+      'hidden': (r['hidden'] == true) ? 1 : 0,
+      'sold': (r['sold'] == true) ? 1 : 0,
+      'images': images,
+      'videos': videos,
     });
   }
 
@@ -88,6 +92,7 @@ class SupabaseBackend implements Backend {
         'hidden': p.hidden,
         'sold': p.sold,
         'images': p.images,
+        'videos': p.videos,
         'time': p.time,
       };
 
