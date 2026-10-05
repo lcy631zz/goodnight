@@ -771,6 +771,7 @@ class _PostVideoPlayerState extends State<PostVideoPlayer> {
   late VideoPlayerController _c;
   bool _ready = false;
   bool _playing = false;
+  String? _error;
 
   @override
   void initState() {
@@ -778,6 +779,8 @@ class _PostVideoPlayerState extends State<PostVideoPlayer> {
     _c = VideoPlayerController.networkUrl(Uri.parse(widget.url))
       ..initialize().then((_) {
         if (mounted) setState(() => _ready = true);
+      }).catchError((e) {
+        if (mounted) setState(() => _error = e.toString());
       });
   }
 
@@ -789,6 +792,30 @@ class _PostVideoPlayerState extends State<PostVideoPlayer> {
 
   @override
   Widget build(BuildContext context) {
+    if (_error != null) {
+      return Container(
+        height: 220,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.black12,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.videocam_off, size: 36, color: Colors.grey),
+            const SizedBox(height: 8),
+            const Text('视频无法在应用内播放', style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 6),
+            SelectableText(widget.url,
+                style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            const SizedBox(height: 6),
+            const Text('可复制上方链接，在浏览器新标签打开观看',
+                style: TextStyle(fontSize: 11, color: Colors.grey)),
+          ],
+        ),
+      );
+    }
     if (!_ready) {
       return const SizedBox(
         height: 220,
