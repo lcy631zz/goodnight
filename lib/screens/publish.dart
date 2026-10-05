@@ -111,7 +111,7 @@ class _PublishScreenState extends State<PublishScreen> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('发布成功！已出现在「校园圈」')));
+            SnackBar(content: Text('发布成功！已发布到「$_board」')));
         Navigator.pop(context, true);
       }
     } catch (e) {
