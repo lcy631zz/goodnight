@@ -25,14 +25,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # GitHub 免费 runner 只有 7GB 内存，release 模式 dart2js 容易 OOM 把
-      # “Build web” 步骤打红。开 4G 交换分区把可用内存撑起来，避免构建被系统杀掉。
-      - name: Add swap space (avoid dart2js OOM on free runner)
+      # GitHub 免费 runner 磁盘很挤（预装 Android SDK / .NET / CodeQL 占 ~10GB），
+      # flutter build web --release 要写很大的 build/web 输出，磁盘满了会把“Build web”
+      # 步骤打红。这里只清掉 web 构建用不到的预装工具，腾出空间。
+      - name: Free disk space (remove unused preinstalled tools)
         run: |
-          sudo fallocate -l 4G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
+          sudo rm -rf /opt/hostedtoolcache/CodeQL 2>/dev/null || true
+          sudo rm -rf /usr/share/dotnet 2>/dev/null || true
+          sudo rm -rf /usr/local/lib/android 2>/dev/null || true
+          sudo rm -rf /opt/gha 2>/dev/null || true
+          df -h / || true
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
