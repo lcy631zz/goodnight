@@ -36,16 +36,6 @@ jobs:
           sudo rm -rf /opt/gha 2>/dev/null || true
           df -h / || true
 
-      # 免费 runner 只有 7GB 内存，release 模式 dart2js 容易 OOM 把“Build web”打红。
-      # 先清盘才有空间建交换分区；fallocate 失败则退回 dd。
-      - name: Add swap space (avoid dart2js OOM)
-        run: |
-          sudo fallocate -l 3G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=3072
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          free -h || true
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
