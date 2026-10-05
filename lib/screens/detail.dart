@@ -42,6 +42,7 @@ class _DetailScreenState extends State<DetailScreen> {
   List<String> _friends = [];
   bool _loadingFriends = true;
   String? _me;
+  bool _isAdmin = false;
   final _ctrl = TextEditingController();
   final _focus = FocusNode();
 
@@ -52,6 +53,10 @@ class _DetailScreenState extends State<DetailScreen> {
     DB.getCurrentUser().then((me) {
       _me = me;
       if (me != null && _p.id != null) DB.addHistory(_p.id!);
+      if (mounted) setState(() {});
+    });
+    DB.isAdmin().then((a) {
+      _isAdmin = a;
       if (mounted) setState(() {});
     });
     _loadFriends();
@@ -163,6 +168,9 @@ class _DetailScreenState extends State<DetailScreen> {
   Future<void> _save() async => DB.updatePost(_p);
 
   bool get _isAuthor => _me == _p.author;
+
+  /// 谁能删贴：发布者本人删自己的贴，或管理员删任意贴。
+  bool get _canDelete => _isAuthor || _isAdmin;
 
   /// 黑市贴主专属：标记已售出 / 重新上架（仿闲鱼）。
   Widget _soldAction() {
@@ -304,6 +312,47 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+  /// 删除帖子：作者删自己的贴，或管理员删任意贴。二次确认，真删除不可恢复。
+  Future<void> _deletePost() async {
+    if (_p.id == null) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(t('删除帖子')),
+        content: Text(_isAdmin && !_isAuthor
+            ? t('确定要删除这条帖子吗？此操作不可恢复。')
+            : t('确定要删除你发布的这条帖子吗？此操作不可恢复。')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(t('取消')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(t('删除'),
+                style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await DB.deletePost(_p.id!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t('已删除'))),
+        );
+        Navigator.pop(context, true); // 返回并通知列表刷新
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${t('删除失败')}: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
   Widget _commentContent(Comment c) {
     if (c.sticker != null) {
       return Text(c.sticker!, style: const TextStyle(fontSize: 40));
@@ -435,6 +484,12 @@ class _DetailScreenState extends State<DetailScreen> {
         ),
         title: Text(t('详情')),
         actions: [
+          if (_canDelete)
+            IconButton(
+              onPressed: _deletePost,
+              icon: const Icon(Icons.delete_outline),
+              tooltip: t('删除'),
+            ),
           IconButton(
             onPressed: _reportPost,
             icon: const Icon(Icons.flag_outlined),

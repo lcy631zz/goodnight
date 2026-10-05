@@ -15,6 +15,7 @@ abstract class Backend {
   Future<int> insertPost(Post p);
   Future<void> updatePost(Post p);
   Future<void> hidePost(int id);
+  Future<void> deletePost(int id); // 真删除：作者删自己的贴 / 管理员删任意贴
   Future<void> setPostSold(int id, bool sold);
   Future<List<Post>> postsByAuthor(String author);
   Future<void> removeComment(int postId, int commentId);

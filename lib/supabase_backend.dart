@@ -200,6 +200,11 @@ class SupabaseBackend implements Backend {
   }
 
   @override
+  Future<void> deletePost(int id) async {
+    await _sb.from('posts').delete().eq('id', id);
+  }
+
+  @override
   Future<List<Post>> postsByAuthor(String author) async {
     final res = await _sb
         .from('posts')

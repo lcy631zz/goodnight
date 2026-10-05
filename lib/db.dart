@@ -22,6 +22,7 @@ class DB {
   static Future<int> insertPost(Post p) => _backend.insertPost(p);
   static Future<void> updatePost(Post p) => _backend.updatePost(p);
   static Future<void> hidePost(int id) => _backend.hidePost(id);
+  static Future<void> deletePost(int id) => _backend.deletePost(id);
   static Future<void> setPostSold(int id, bool sold) =>
       _backend.setPostSold(id, sold);
   static Future<List<Post>> postsByAuthor(String author) =>
