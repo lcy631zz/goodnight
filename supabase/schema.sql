@@ -26,6 +26,13 @@ create table if not exists public.posts (
 -- 黑市「已售出」标记（重复执行安全：表已存在时只补列，不报错）
 alter table public.posts add column if not exists sold boolean default false;
 
+-- 点赞数 / 分享数（发布时会写入，缺列会导致 PostgREST 400 被 App 吞成"检查网络"）
+alter table public.posts add column if not exists collects int default 0;
+alter table public.posts add column if not exists shares   int default 0;
+
+-- 视频 URL 数组（发视频帖用，缺列同样会发布失败）
+alter table public.posts add column if not exists videos   text[] default '{}';
+
 -- 2) 用户（avatar_url 为头像图片 URL，替代原本地路径）
 create table if not exists public.users (
   username      text primary key,
