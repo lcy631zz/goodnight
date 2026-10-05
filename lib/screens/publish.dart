@@ -115,10 +115,14 @@ class _PublishScreenState extends State<PublishScreen> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      // 网络失败/后端报错时给出明确反馈，而不是毫无反应
+      // 调试期直接显示真实错误（缺列/RLS/网络等一目了然），不再吞成"检查网络"
+      final msg = e.toString();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('发布失败，请检查网络后重试')),
+          SnackBar(
+            duration: const Duration(seconds: 8),
+            content: Text('发布失败：$msg'),
+          ),
         );
       }
     } finally {
