@@ -144,6 +144,9 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _goto(int i) async {
     // 先立刻切页，不等网络——否则每次点标签都要等一次 Supabase 往返，非常卡。
     if (mounted) setState(() => _tab = i);
+    // 审核页是 IndexedStack 常驻页（initState 只跑一次），
+    // 每次切到它都要触发重新拉取待审核队列，否则显示的是启动时的旧数据。
+    if (i == _reviewIndex) reviewRefreshTick.value++;
     // 角色/未读数在后台刷新，回来后再安静地更新 UI。
     final can = await DB.canReview();
     if (mounted && can != _canReview) setState(() => _canReview = can);

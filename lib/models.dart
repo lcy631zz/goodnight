@@ -8,9 +8,11 @@ class Comment {
   final String name;
   final String text;
   final List<Comment> replies;
-  final bool uncertain; // 机器人判定为"不确定"内容（仍放行，但进审核队列）
+  // 可变：管理员「通过」审核后需要清除待审核标记
+  bool uncertain; // 机器人判定为"不确定"内容（仍放行，但进审核队列）
   final String? imagePath; // 本地导入图片
   final String? sticker; // 表情包
+  final bool authorLiked; // 发布者（帖子作者）是否赞过这条评论 → 特殊标注+置顶
 
   Comment({
     int? id,
@@ -70,7 +72,8 @@ class Post {
   final int shares; // 转发数
   final String time;
   List<Comment> comments;
-  final bool uncertain; // 机器人判定为"不确定"内容
+  // 可变：管理员「通过」审核后需要清除待审核标记
+  bool uncertain; // 机器人判定为"不确定"内容
   bool hidden; // 审核被删除
   bool sold; // 黑市：是否已售出（仿闲鱼，售出后不再推荐）
   List<String> images; // 已上传到 Storage 的公有 URL（最多 9 张）

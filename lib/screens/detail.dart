@@ -129,14 +129,23 @@ class _DetailScreenState extends State<DetailScreen> {
     setState(() {});
     try {
       if (uncertain) {
-        await DB.addReport(Report(
-          type: 'comment',
-          targetId: _p.id!,
-          commentId: cm.id,
-          reporter: 'bot',
-          source: 'bot',
-          reason: t('边界词触发，已放行但待人工复核'),
-        ));
+        try {
+          await DB.addReport(Report(
+            type: 'comment',
+            targetId: _p.id!,
+            commentId: cm.id,
+            reporter: 'bot',
+            source: 'bot',
+            reason: t('边界词触发，已放行但待人工复核'),
+          ));
+        } catch (_) {
+          // 进审核队列失败不阻塞评论本身（评论已正常显示），仅提示
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(t('提示：进审核队列失败，内容已发布'))),
+            );
+          }
+        }
       }
       await DB.updatePost(_p);
       // 成功：从服务端重新拉取，确保嵌套回复与服务器完全一致。
@@ -312,6 +321,99 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+  /// 删除自己的评论（含其下所有回复）。乐观删除，落库失败则从服务端恢复并提示。
+  Future<void> _deleteComment(Comment c) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(t('删除评论')),
+        content: Text(t('确定删除这条评论吗？其下的回复也会一并删除')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(t('取消')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('删除',
+                style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || _p.id == null) return;
+    final removed = _removeCommentAt(_p.comments, c.id);
+    if (removed && mounted) setState(() {});
+    try {
+      await DB.removeComment(_p.id!, c.id);
+    } catch (e) {
+      // 失败：从服务端拉回真实评论树，并提示真实错误
+      try {
+        final fresh = await DB.postById(_p.id!, includeHidden: true);
+        if (fresh != null && mounted) setState(() => _p = fresh);
+      } catch (_) {}
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 8),
+            content: Text('${t('删除失败')}：${e.toString()}'),
+          ),
+        );
+      }
+    }
+  }
+
+  /// 在评论树中递归移除指定 id 的评论（含其回复）；返回是否移除成功。
+  bool _removeCommentAt(List<Comment> list, int cid) {
+    for (int i = 0; i < list.length; i++) {
+      if (list[i].id == cid) {
+        list.removeAt(i);
+        return true;
+      }
+      if (_removeCommentAt(list[i].replies, cid)) return true;
+    }
+    return false;
+  }
+
+  /// 举报别人的评论（进管理员审核队列）。
+  Future<void> _reportComment(Comment c) async {
+    var me = await DB.getCurrentUser();
+    if (me == null) {
+      final logged = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+      if (logged != true) return;
+      me = await DB.getCurrentUser();
+    }
+    if (me == null) return;
+    final reason = await _reportDialog();
+    if (reason == null) return;
+    try {
+      await DB.addReport(Report(
+        type: 'comment',
+        targetId: _p.id!,
+        commentId: c.id,
+        reporter: me,
+        reason: reason,
+        source: 'user',
+      ));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t('已举报，等待管理员审核'))),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 8),
+            content: Text('${t('举报失败')}：${e.toString()}'),
+          ),
+        );
+      }
+    }
+  }
+
   /// 删除帖子：作者删自己的贴，或管理员删任意贴。二次确认，真删除不可恢复。
   Future<void> _deletePost() async {
     if (_p.id == null) return;
@@ -428,14 +530,40 @@ class _DetailScreenState extends State<DetailScreen> {
                       ],
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => _setReply(path, c.name),
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(t('回复'),
-                          style: const TextStyle(
-                              color: primary, fontSize: 11)),
-                    ),
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => _setReply(path, c.name),
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(t('回复'),
+                              style: const TextStyle(
+                                  color: primary, fontSize: 11)),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      // 自己的评论可删除；别人的评论可举报（需已登录）
+                      if (_me != null && c.name == _me)
+                        GestureDetector(
+                          onTap: () => _deleteComment(c),
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(t('删除'),
+                                style: const TextStyle(
+                                    color: Colors.redAccent, fontSize: 11)),
+                          ),
+                        )
+                      else if (_me != null)
+                        GestureDetector(
+                          onTap: () => _reportComment(c),
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(t('举报'),
+                                style: const TextStyle(
+                                    color: subColor, fontSize: 11)),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),

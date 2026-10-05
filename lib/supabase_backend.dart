@@ -475,13 +475,39 @@ class SupabaseBackend implements Backend {
       'reviewed_by': r.reviewedBy,
       'reviewed_at': r.reviewedAt,
     }).eq('id', reportId);
-    if (!approve) {
+    if (approve) {
+      // 通过：清除「待审核」标记，内容恢复正常展示（不再挂橙色标签）
+      if (r.type == 'post') {
+        final p = await postById(r.targetId, includeHidden: true);
+        if (p != null && p.uncertain) {
+          p.uncertain = false;
+          await updatePost(p);
+        }
+      } else if (r.type == 'comment' && r.commentId != null) {
+        final p = await postById(r.targetId, includeHidden: true);
+        if (p != null && _clearCommentUncertain(p.comments, r.commentId!)) {
+          await updatePost(p);
+        }
+      }
+    } else {
       if (r.type == 'post') {
         await hidePost(r.targetId);
       } else if (r.type == 'comment' && r.commentId != null) {
         await removeComment(r.targetId, r.commentId!);
       }
     }
+  }
+
+  /// 在评论树中找到该评论并清除 uncertain 标记；返回是否找到。
+  bool _clearCommentUncertain(List<Comment> list, int cid) {
+    for (final c in list) {
+      if (c.id == cid) {
+        c.uncertain = false;
+        return true;
+      }
+      if (_clearCommentUncertain(c.replies, cid)) return true;
+    }
+    return false;
   }
 
   // ---------- 反馈 ----------

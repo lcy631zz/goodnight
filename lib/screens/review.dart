@@ -7,6 +7,11 @@ const primary = Color(0xFF3B6FE0);
 const subColor = Color(0xFF8A90A2);
 const textColor = Color(0xFF1F2330);
 
+/// 审核页是 IndexedStack 常驻页面（initState 只在 App 启动时执行一次），
+/// main.dart 在用户切到「审核」tab 时自增此值，页面监听到变化即重新拉取队列。
+/// 否则管理员发完内容再切过来，看到的仍是启动时的空列表（假空）。
+final reviewRefreshTick = ValueNotifier<int>(0);
+
 class ReviewScreen extends StatefulWidget {
   const ReviewScreen({super.key});
 
@@ -22,6 +27,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
   void initState() {
     super.initState();
     _load();
+    reviewRefreshTick.addListener(_onTick);
+  }
+
+  void _onTick() => _load();
+
+  @override
+  void dispose() {
+    reviewRefreshTick.removeListener(_onTick);
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -39,9 +53,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
         map[r.id] = _commentText(p, r.commentId!) ?? '';
       }
     }
+    // 先填好摘要再 setState，避免中途一次 build 拿到旧摘要
+    _snippet
+      ..clear()
+      ..addAll(map);
     if (mounted) setState(() => _items = reports);
-    _snippet.clear();
-    _snippet.addAll(map);
   }
 
   String? _commentText(Post p, int cid) {
@@ -69,14 +85,24 @@ class _ReviewScreenState extends State<ReviewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(t('审核中心'))),
-      body: _items.isEmpty
-          ? Center(
-              child: Text(t('暂无待审核内容'),
-                  style: const TextStyle(color: subColor)),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.all(14),
-              itemCount: _items.length,
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: _items.isEmpty
+            ? ListView(
+                // 空态也保留下拉刷新能力
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                    SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.65),
+                    Center(
+                      child: Text(t('暂无待审核内容'),
+                          style: const TextStyle(color: subColor)),
+                    ),
+                  ])
+            : ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(14),
+                itemCount: _items.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (_, i) {
                 final r = _items[i];
@@ -194,6 +220,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 );
               },
             ),
+      ),
     );
   }
 }
