@@ -115,21 +115,42 @@ class _DetailScreenState extends State<DetailScreen> {
       sticker: sticker,
       uncertain: uncertain,
     );
-    _targetReplies().add(cm);
-    if (uncertain) {
-      await DB.addReport(Report(
-        type: 'comment',
-        targetId: _p.id!,
-        commentId: cm.id,
-        reporter: 'bot',
-        source: 'bot',
-        reason: t('边界词触发，已放行但待人工复核'),
-      ));
-    }
+    // 乐观更新：先把回复加进内存并立即刷新，让回复立刻可见；
+    // 若后续落库失败再回滚，避免“点了没反应”的静默失败。
+    final target = _targetReplies();
+    target.add(cm);
     _replyPath = null;
     _replyName = null;
-    await DB.updatePost(_p);
     setState(() {});
+    try {
+      if (uncertain) {
+        await DB.addReport(Report(
+          type: 'comment',
+          targetId: _p.id!,
+          commentId: cm.id,
+          reporter: 'bot',
+          source: 'bot',
+          reason: t('边界词触发，已放行但待人工复核'),
+        ));
+      }
+      await DB.updatePost(_p);
+      // 成功：从服务端重新拉取，确保嵌套回复与服务器完全一致。
+      final fresh = await DB.postById(_p.id!, includeHidden: true);
+      if (fresh != null && mounted) _p = fresh;
+      if (mounted) setState(() {});
+    } catch (e) {
+      // 失败：回滚乐观更新，并展示真实错误（不再静默吞掉）。
+      target.remove(cm);
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 8),
+            content: Text('评论发送失败：${e.toString()}'),
+          ),
+        );
+      }
+    }
   }
 
   void _setReply(List<int> path, String name) {
