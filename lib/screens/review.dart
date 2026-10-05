@@ -40,9 +40,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _load() async {
     final reports = await DB.pendingReports();
+    // 并行拉取每条举报的目标帖子，替代逐条 await 的 N 次串行往返，显著提速
+    final posts = reports.isEmpty
+        ? <Post?>[]
+        : await Future.wait(
+            reports.map((r) => DB.postById(r.targetId, includeHidden: true)));
     final map = <int, String>{};
-    for (final r in reports) {
-      final p = await DB.postById(r.targetId, includeHidden: true);
+    for (int i = 0; i < reports.length; i++) {
+      final r = reports[i];
+      final p = posts[i];
       if (p == null) {
         map[r.id] = t('（原内容已不存在）');
         continue;
@@ -54,10 +60,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
       }
     }
     // 先填好摘要再 setState，避免中途一次 build 拿到旧摘要
-    _snippet
-      ..clear()
-      ..addAll(map);
-    if (mounted) setState(() => _items = reports);
+    if (mounted) {
+      _snippet
+        ..clear()
+        ..addAll(map);
+      setState(() => _items = reports);
+    }
   }
 
   String? _commentText(Post p, int cid) {
@@ -74,11 +82,37 @@ class _ReviewScreenState extends State<ReviewScreen> {
   }
 
   Future<void> _resolve(Report r, bool approve) async {
-    final me = await DB.getCurrentUser() ?? 'admin';
-    await DB.resolveReport(r.id, approve, me);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(approve ? t('已通过') : t('已删除内容'))));
-    await _load();
+    // 乐观更新：先立即从列表移除并给出即时反馈，避免"点了没反应"的错觉。
+    final idx = _items.indexWhere((e) => e.id == r.id);
+    if (idx >= 0) {
+      _items.removeAt(idx);
+      _snippet.remove(r.id);
+      if (mounted) setState(() {});
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(approve ? t('已通过') : t('已删除内容'))));
+    }
+    try {
+      final me = await DB.getCurrentUser() ?? 'admin';
+      await DB.resolveReport(r.id, approve, me); // 等后端真正处理完
+    } catch (e) {
+      // 失败：回滚，把这条放回原位置并提示真实错误
+      if (mounted) {
+        setState(() {
+          if (idx >= 0) _items.insert(idx, r);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          duration: const Duration(seconds: 8),
+          content: Text('${t('操作失败')}：${e.toString()}'),
+        ));
+      }
+      return;
+    }
+    // 后端已处理完，再静默刷新（此刻服务器已不含该条，不会回弹）
+    try {
+      await _load();
+    } catch (_) {}
   }
 
   @override
