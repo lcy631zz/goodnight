@@ -723,9 +723,9 @@ class _DetailScreenState extends State<DetailScreen> {
               child: Column(
                 children: [
                   if (_p.images.isNotEmpty)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 240,
+                    AspectRatio(
+                      // 3:4 竖图比例（小红书风），比原先固定 240px 裁切少得多
+                      aspectRatio: 3 / 4,
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
