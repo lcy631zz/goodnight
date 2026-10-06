@@ -12,7 +12,8 @@ class Comment {
   bool uncertain; // 机器人判定为"不确定"内容（仍放行，但进审核队列）
   final String? imagePath; // 本地导入图片
   final String? sticker; // 表情包
-  final bool authorLiked; // 发布者（帖子作者）是否赞过这条评论 → 特殊标注+置顶
+  // 可变：发布者点赞/取消点赞评论（toggle「作者赞过」标注+置顶）需要能改写
+  bool authorLiked; // 发布者（帖子作者）是否赞过这条评论 → 特殊标注+置顶
 
   Comment({
     int? id,
