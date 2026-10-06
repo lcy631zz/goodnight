@@ -1,7 +1,7 @@
 {
-  "latestVersion": "1.0.4",
+  "latestVersion": "1.0.5",
   "minRequiredVersion": "1.0.0",
-  "downloadUrl": "https://ghproxy.net/https://github.com/lcy631zz/goodnight/releases/download/v1.0.4/goodnight.apk",
-  "releaseNotes": "· 修复应用内更新提示不弹出的问题（版本检查改用国内可达的镜像）\n· 应用内更新现在可正常下载并调起安装\n· 上一版登录态修复同步包含在内",
+  "downloadUrl": "https://ghproxy.net/https://github.com/lcy631zz/goodnight/releases/download/v1.0.5/goodnight.apk",
+  "releaseNotes": "· 评论回复修复：发送失败不再静默吞掉，会提示真实错误\n· 作者点赞/置顶评论、作者与管理员可删评论\n· 首页小红书风格瀑布流、图片少裁、视频首帧预览\n· 发布者可删自己帖、管理员可删任意帖\n· 审核页通过/拒绝优化、切回即时刷新\n· 网页版迁移至 GitHub Pages",
   "forceUpdate": false
 }
