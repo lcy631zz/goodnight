@@ -1,13 +1,14 @@
-# goodnight 网页自动部署到 Netlify（GitHub Actions）
+# goodnight 网页自动部署到 GitHub Pages（GitHub Actions）
 #
-# 激活方式（只需你登录自己的账号做一步，Site ID 已内置，无需再配）：
-#   1. 代码推到 GitHub 仓库的 main 分支（已完成）。
-#   2. 在 Netlify 生成一个 Auth Token：
-#        User settings → Applications → Personal access tokens → New access token
-#   3. 在 GitHub 仓库 Settings → Secrets and variables → Actions 新增 **1 个** secret：
-#        NETLIFY_AUTH_TOKEN  = 上面的 Auth Token
-#   （粘贴时即使误带了换行/空格也没关系，工作流会自动剔除空白再使用。）
-#   填完之后，以后只要 git push 到 main，就会自动出网页并上线，不用再手拖。
+# 线上地址：https://lcy631zz.github.io/goodnight/
+#
+# 为什么从 Netlify 换过来：Netlify 免费套餐改为按月额度（300 credits），
+# 额度用尽会直接封锁部署（Error: Forbidden: Account credit usage exceeded），
+# 下个账单周期（每月 27 日）才重置。GitHub Pages 对公开仓库免费且无部署次数限制。
+#
+# 首次启用只需一步（仓库 Settings → Pages → Source 选 "GitHub Actions"）；
+# 若还没开，Deploy 步骤会报 "Get Pages site failed"，开了之后重跑即可。
+# 之后每次 push 到 main 就会自动构建并上线。
 #
 # 注意：本仓库根目录就是 Flutter 项目根（lib/、pubspec.yaml 在顶层），
 # 所以构建与发布路径都不带任何子目录前缀。
@@ -19,9 +20,23 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# GitHub Pages 部署所需的最小权限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时间只保留一次部署：新推送自动取消还在跑的旧部署，防止排队冲突
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -46,27 +61,25 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      # --no-source-maps 进一步降低 dart2js 峰值内存与构建耗时
+      # --base-href=/goodnight/ ：Pages 项目页挂在仓库子路径下，必须告知资源前缀，
+      # 否则 JS/字体/图标会 404、整页白屏。
+      # --no-source-maps 进一步降低 dart2js 峰值内存与构建耗时。
       - name: Build web
-        run: flutter build web --release --no-source-maps
+        run: flutter build web --release --no-source-maps --base-href=/goodnight/
 
-      - name: Sanitize Netlify token
-        # GitHub 仓库 Secret 有时会被误带首尾换行/回车/空格（从终端或网页复制时很常见），
-        # 这些空白会让 Node 在设置 HTTP 头时报 “Is not a legal HTTP header value”。
-        # 这里先把 Secret 里的所有空白字符去掉，再写入 $GITHUB_ENV 供下一步使用，
-        # 即使你之前粘贴的 Secret 带了换行也能正常部署。
-        env:
-          RAW_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-        run: |
-          TOKEN=$(printf '%s' "$RAW_TOKEN" | tr -d '[:space:]')
-          echo "NETLIFY_AUTH_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+      # SPA 兜底：直接打开或刷新深层路径时，Pages 找不到对应文件会返回 404.html，
+      # 复制 index.html 过去即可让 Flutter 接管路由，页面不会 404/白屏。
+      - name: SPA fallback (404.html)
+        run: cp build/web/index.html build/web/404.html
 
-      - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v3
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          publish-dir: build/web
-          production-deploy: true
-        env:
-          # Site ID 不是凭据（单有它、没有 token 也调不动 Netlify），直接内置，省得再配一个 secret
-          NETLIFY_SITE_ID: e7d1aca1-c301-4777-872b-c3fa5b484293
-          # NETLIFY_AUTH_TOKEN 由上一步从 Secret 清洗后写入 $GITHUB_ENV，这里不再直接展开原始 Secret
+          path: build/web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
