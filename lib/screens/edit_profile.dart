@@ -39,23 +39,36 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _pickImage() async {
+    if (_u == null) return;
     final picked = await ImagePicker()
         .pickImage(source: ImageSource.gallery, maxWidth: 512, maxHeight: 512);
     if (picked == null) return;
-    final bytes = await picked.readAsBytes();
-    final ext = picked.name.contains('.')
-        ? picked.name.split('.').last.toLowerCase()
-        : 'jpg';
-    final path = 'avatars/${_u!.username}.$ext';
-    await Supabase.instance.client.storage.from('media').uploadBinary(
-          path,
-          bytes,
-          fileOptions:
-              FileOptions(upsert: true, contentType: 'image/$ext'),
-        );
-    final url =
-        Supabase.instance.client.storage.from('media').getPublicUrl(path);
-    setState(() => _u!.avatarPath = url);
+    try {
+      final bytes = await picked.readAsBytes();
+      final ext = picked.name.contains('.')
+          ? picked.name.split('.').last.toLowerCase()
+          : 'jpg';
+      final path = 'avatars/${_u!.username}.$ext';
+      await Supabase.instance.client.storage.from('media').uploadBinary(
+            path,
+            bytes,
+            fileOptions:
+                FileOptions(upsert: true, contentType: 'image/$ext'),
+          );
+      final url =
+          Supabase.instance.client.storage.from('media').getPublicUrl(path);
+      setState(() => _u!.avatarPath = url);
+      await DB.updateUser(_u!); // 立刻落库，无需再点"保存"
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('头像已更新')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('头像上传失败：${e.toString()}')));
+      }
+    }
   }
 
   Future<void> _save() async {

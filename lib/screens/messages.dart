@@ -322,11 +322,18 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   List<User> _candidates = [];
   List<String> _friends = [];
   List<String> _pendingTo = [];
+  final _q = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -363,7 +370,35 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
       appBar: AppBar(title: Text(t('添加好友'))),
       body: ListView(
         padding: const EdgeInsets.only(top: 8, bottom: 16),
-        children: _candidates.map((u) {
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+            child: TextField(
+              controller: _q,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: '搜索用户名 / 性别 / 专业 / 年级',
+                hintStyle: const TextStyle(color: subColor),
+                prefixIcon: const Icon(Icons.search, color: subColor, size: 20),
+                filled: true,
+                fillColor: const Color(0xFFF4F5F7),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+              ),
+            ),
+          ),
+          ..._candidates.where((u) {
+            final kw = _q.text.trim().toLowerCase();
+            if (kw.isEmpty) return true;
+            final hay = [u.username, u.gender, u.major, u.grade]
+                .where((s) => s != null)
+                .map((s) => s!.toLowerCase());
+            return hay.any((s) => s.contains(kw));
+          }).map((u) {
           final isFriend = _friends.contains(u.username);
           final pending = _pendingTo.contains(u.username);
           return Container(
@@ -417,6 +452,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
             ),
           );
         }).toList(),
+        ],
       ),
     );
   }
