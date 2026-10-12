@@ -10,12 +10,19 @@
 /// 模板见仓库根目录的 version_check.json（改完再提交）。
 const String kCurrentVersion = '1.0.5';
 
-/// version_check.json 的远程地址（已替换为真实仓库）
-/// 已改为：GitHub 账号 lcy631zz，仓库名 goodnight，分支 main。
-/// ⚠️ 原 raw.githubusercontent.com 在国内常被墙（拉取返回 0/超时），导致更新提示永不弹出。
-///    改用 ghproxy 镜像，国内可达（已验证 200）。
-const String kVersionCheckUrl =
-    'https://ghproxy.net/https://raw.githubusercontent.com/lcy631zz/goodnight/main/version_check.json';
+/// version_check.json 的真实路径（不含协议前缀，由下方镜像列表逐个拼接后尝试）
+const String kVersionCheckPath =
+    'raw.githubusercontent.com/lcy631zz/goodnight/main/version_check.json';
+
+/// 多个 GitHub 反向代理镜像，按顺序尝试；最后一个 '' 表示直连（兜底，国内通常不通）。
+/// 任一镜像可达即可完成版本检查；下载地址也会自动换成当前成功的镜像，保证下载也走通的线路。
+const List<String> kGhProxyMirrors = [
+  'https://ghproxy.net/https://',
+  'https://ghproxy.com/https://',
+  'https://ghproxy.io/https://',
+  'https://mirror.ghproxy.com/https://',
+  '',
+];
 
 /// 必须与 Android 端 MainActivity.kt 里的 CHANNEL 字符串保持一致
 const String kAppUpdateChannel = 'com.goodnight.goodnight/app_update';

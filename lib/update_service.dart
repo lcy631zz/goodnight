@@ -41,22 +41,48 @@ int compareVersion(String a, String b) {
   return 0;
 }
 
-/// 拉取远程版本信息；网络异常/解析失败时返回 null（静默跳过更新检查，不打扰用户）。
+/// 依次尝试多个镜像拉取远程版本信息；全部失败返回 null（静默跳过更新检查）。
 Future<UpdateInfo?> fetchLatestVersion() async {
   if (kIsWeb) return null; // Web 端刷新即更新，不需要应用内更新
-  try {
-    final res = await http
-        .get(Uri.parse(kVersionCheckUrl))
-        .timeout(const Duration(seconds: 8));
-    if (res.statusCode != 200) return null;
-    final j = jsonDecode(res.body);
-    if (j is! Map<String, dynamic>) return null;
-    final info = UpdateInfo.fromJson(j);
-    if (info.latestVersion.isEmpty || info.downloadUrl.isEmpty) return null;
-    return info;
-  } catch (_) {
-    return null;
+  for (final mirror in kGhProxyMirrors) {
+    final url = mirror.isEmpty
+        ? 'https://$kVersionCheckPath'
+        : '$mirror$kVersionCheckPath';
+    try {
+      final res = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 8));
+      if (res.statusCode != 200) continue;
+      final j = jsonDecode(res.body);
+      if (j is! Map<String, dynamic>) continue;
+      final info = UpdateInfo.fromJson(j);
+      if (info.latestVersion.isEmpty || info.downloadUrl.isEmpty) continue;
+      // 把 downloadUrl 的镜像前缀换成当前成功的镜像，保证下载也走通的线路
+      final downloadUrl = _rewriteMirror(info.downloadUrl, mirror);
+      return UpdateInfo(
+        latestVersion: info.latestVersion,
+        minRequiredVersion: info.minRequiredVersion,
+        downloadUrl: downloadUrl,
+        releaseNotes: info.releaseNotes,
+        forceUpdate: info.forceUpdate,
+      );
+    } catch (_) {
+      continue;
+    }
   }
+  return null;
+}
+
+/// 把 downloadUrl 里已有的 ghproxy 镜像前缀换成 workingMirror。
+/// 若本身是 ghproxy 风格地址则替换前缀；若是别的托管地址（如 Cloudflare），原样返回。
+String _rewriteMirror(String url, String workingMirror) {
+  for (final m in kGhProxyMirrors) {
+    if (m.isNotEmpty && url.startsWith(m)) {
+      final rest = url.substring(m.length);
+      return workingMirror.isEmpty ? 'https://$rest' : '$workingMirror$rest';
+    }
+  }
+  return url;
 }
 
 class UpdateCheckResult {
