@@ -41,7 +41,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   /// Supabase Storage 的对象 key 不接受中文等非 ASCII 字符（会报 InvalidKey），
   /// 所以把用户名转成稳定的 ASCII 文件名：保留字母/数字/_/-，再拼上
   /// 用户名的 djb2 哈希兜底，保证不同用户名不互相覆盖。
-  /// 例：'MS100' -> 'MS100_1a2b3c4d'；'小ye' -> 'u74c09be2'。
+  /// 例：'MS100' -> 'MS100_7c881f83'；'小ye' -> 'ud0e5eb2'。
   String _avatarKey(String username) {
     final ascii = StringBuffer();
     for (final c in username.codeUnits) {
