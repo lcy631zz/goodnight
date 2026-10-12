@@ -38,6 +38,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _u = u);
   }
 
+  /// Supabase Storage 的对象 key 不接受中文等非 ASCII 字符（会报 InvalidKey），
+  /// 所以把用户名转成稳定的 ASCII 文件名：保留字母/数字/_/-，再拼上
+  /// 用户名的 djb2 哈希兜底，保证不同用户名不互相覆盖。
+  /// 例：'MS100' -> 'MS100_1a2b3c4d'；'小ye' -> 'u74c09be2'。
+  String _avatarKey(String username) {
+    final ascii = StringBuffer();
+    for (final c in username.codeUnits) {
+      if ((c >= 48 && c <= 57) || // 0-9
+          (c >= 65 && c <= 90) || // A-Z
+          (c >= 97 && c <= 122) || // a-z
+          c == 95 ||
+          c == 45) {
+        ascii.writeCharCode(c);
+      }
+    }
+    var h = 5381;
+    for (var i = 0; i < username.length; i++) {
+      h = ((h << 5) + h + username.codeUnitAt(i)) & 0x7FFFFFFF;
+    }
+    final hex = h.toRadixString(16);
+    return ascii.isEmpty ? 'u$hex' : '${ascii}_$hex';
+  }
+
   Future<void> _pickImage() async {
     if (_u == null) return;
     final picked = await ImagePicker()
@@ -45,10 +68,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (picked == null) return;
     try {
       final bytes = await picked.readAsBytes();
-      final ext = picked.name.contains('.')
+      var ext = picked.name.contains('.')
           ? picked.name.split('.').last.toLowerCase()
           : 'jpg';
-      final path = 'avatars/${_u!.username}.$ext';
+      // 扩展名只保留小写字母数字，防止奇怪文件名带坏 key / contentType
+      ext = ext.replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (ext.isEmpty || ext.length > 5) ext = 'jpg';
+      final path = 'avatars/${_avatarKey(_u!.username)}.$ext';
       await Supabase.instance.client.storage.from('media').uploadBinary(
             path,
             bytes,
