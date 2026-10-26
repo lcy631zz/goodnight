@@ -77,28 +77,24 @@ class HomeScreenState extends State<HomeScreen> {
         ? _posts
         : _posts.where((p) => p.board == _board).toList();
 
-    // 小红书式瀑布流：按估算高度把卡片贪心放进较矮的一列。
-    // 列数随屏幕宽度自适应（手机 2 列；网页宽屏 3~5 列），避免宽屏下卡片被拉伸成巨图。
-    final w = MediaQuery.of(context).size.width;
-    final cols = w < 680 ? 2 : (w < 1000 ? 3 : (w < 1400 ? 4 : 5));
-    final colLists = List<List<Post>>.generate(cols, (_) => <Post>[]);
-    final colH = List<double>.filled(cols, 0);
+    // 小红书式瀑布流：贪心把卡片放进较矮的一列（固定 2 列 —— 像小红书那样左右各一个）。
+    // 外层用 ConstrainedBox 限宽居中，宽屏网页也不会把卡片拉伸成巨图。
+    final left = <Post>[], right = <Post>[];
+    double lh = 0, rh = 0;
     for (final p in list) {
-      final h = _estCardHeight(p, cols);
-      var min = 0;
-      for (var i = 1; i < cols; i++) {
-        if (colH[i] < colH[min]) min = i;
+      final h = _estCardHeight(p);
+      if (lh <= rh) {
+        left.add(p);
+        lh += h;
+      } else {
+        right.add(p);
+        rh += h;
       }
-      colLists[min].add(p);
-      colH[min] += h;
     }
     final colWidgets = <Widget>[
-      for (var i = 0; i < cols; i++) ...[
-        if (i > 0) const SizedBox(width: 8),
-        Expanded(
-          child: Column(children: colLists[i].map(_card).toList()),
-        ),
-      ]
+      Expanded(child: Column(children: left.map(_card).toList())),
+      const SizedBox(width: 8),
+      Expanded(child: Column(children: right.map(_card).toList())),
     ];
 
     return Scaffold(
@@ -129,7 +125,7 @@ class HomeScreenState extends State<HomeScreen> {
                 : SingleChildScrollView(
                     child: Center(
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1400),
+                        constraints: const BoxConstraints(maxWidth: 680),
                         child: Padding(
                           padding: const EdgeInsets.all(8),
                           child: Row(
@@ -147,9 +143,8 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   /// 瀑布流分列用的卡片高度估算（无需等图片真实尺寸，纯布局估算）。
-  double _estCardHeight(Post p, int cols) {
-    final colW =
-        (MediaQuery.of(context).size.width - 16 - (cols - 1) * 8) / cols;
+  double _estCardHeight(Post p) {
+    final colW = (MediaQuery.of(context).size.width - 16) / 2;
     if (p.images.isNotEmpty || p.videos.isNotEmpty) {
       return colW * 4 / 3 + 84; // 3:4 封面 + 标题两行 + 作者行
     }
