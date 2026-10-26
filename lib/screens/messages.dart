@@ -322,6 +322,8 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   List<User> _candidates = [];
   List<String> _friends = [];
   List<String> _pendingTo = [];
+  String? _me;
+  bool _isAdmin = false;
   final _q = TextEditingController();
 
   @override
@@ -341,11 +343,14 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
     final all = (await DB.allUsers()).where((u) => u.username != me).toList();
     final friends = await DB.friendsOf(me);
     final outgoing = await DB.outgoingRequests(me);
+    final isAdmin = await DB.isAdmin();
     if (mounted) {
       setState(() {
         _candidates = all;
         _friends = friends;
         _pendingTo = outgoing.map((r) => r.to).toList();
+        _me = me;
+        _isAdmin = isAdmin;
       });
     }
   }
@@ -362,6 +367,36 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(t('已发送或已是好友'))));
     }
+  }
+
+  String _roleLabel(String role) =>
+      role == 'admin' ? '管理员' : (role == 'reviewer' ? '审核' : '普通用户');
+
+  Future<void> _setRole(User u, String role) async {
+    await DB.setRole(u.username, role);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已将 ${u.username} 设为${_roleLabel(role)}')),
+    );
+    _load();
+  }
+
+  Widget _roleChip(User u, String key, String label) {
+    final on = u.role == key;
+    return Expanded(
+      child: ElevatedButton(
+        onPressed: () => _setRole(u, key),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: on ? primary : const Color(0xFFF4F5F7),
+          foregroundColor: on ? Colors.white : const Color(0xFF8A90A2),
+          elevation: 0,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+        ),
+        child: Text(label, style: const TextStyle(fontSize: 12)),
+      ),
+    );
   }
 
   @override
@@ -401,6 +436,8 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
           }).map((u) {
           final isFriend = _friends.contains(u.username);
           final pending = _pendingTo.contains(u.username);
+          final isMe = u.username == _me;
+          final showRole = _isAdmin && !isMe;
           return Container(
             margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
             padding: const EdgeInsets.all(12),
@@ -408,45 +445,81 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                userAvatar(u, radius: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(u.username,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 14)),
-                      const SizedBox(height: 2),
-                      Text(
-                        [
-                          if (u.gender != null) u.gender!,
-                          if (u.major != null) u.major!,
-                          if (u.grade != null) u.grade!,
-                        ].join(' · '),
-                        style: const TextStyle(fontSize: 11, color: subColor),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => UserProfileScreen(username: u.username),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            userAvatar(u, radius: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(u.username,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    [
+                                      if (u.gender != null) u.gender!,
+                                      if (u.major != null) u.major!,
+                                      if (u.grade != null) u.grade!,
+                                    ].join(' · '),
+                                    style: const TextStyle(
+                                        fontSize: 11, color: subColor),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-                if (isFriend)
-                  const Text('已是好友',
-                      style: TextStyle(color: subColor, fontSize: 12))
-                else if (pending)
-                  const Text('等待通过',
-                      style: TextStyle(color: Color(0xFFF5A623), fontSize: 12))
-                else
-                  ElevatedButton(
-                    onPressed: () => _add(u.username),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primary,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 6),
                     ),
-                    child: Text(t('加好友'),
-                        style: const TextStyle(fontSize: 13, color: Colors.white)),
+                    const SizedBox(width: 8),
+                    if (isFriend)
+                      const Text('已是好友',
+                          style: TextStyle(color: subColor, fontSize: 12))
+                    else if (pending)
+                      const Text('等待通过',
+                          style: TextStyle(
+                              color: Color(0xFFF5A623), fontSize: 12))
+                    else
+                      ElevatedButton(
+                        onPressed: () => _add(u.username),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primary,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 6),
+                        ),
+                        child: Text(t('加好友'),
+                            style: const TextStyle(
+                                fontSize: 13, color: Colors.white)),
+                      ),
+                  ],
+                ),
+                if (showRole)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Row(
+                      children: [
+                        _roleChip(u, 'user', '普通'),
+                        const SizedBox(width: 6),
+                        _roleChip(u, 'reviewer', '审核'),
+                        const SizedBox(width: 6),
+                        _roleChip(u, 'admin', '管理员'),
+                      ],
+                    ),
                   ),
               ],
             ),
