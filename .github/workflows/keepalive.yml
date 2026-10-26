@@ -1,0 +1,38 @@
+# goodnight 后端保活（防 Supabase 免费项目因 7 天闲置自动暂停）
+#
+# 原理：Supabase 免费项目 7 天无任何请求就会被自动暂停（暂停后 App/网页白屏，
+# 且开 VPN 也救不了，必须去控制台手动 Resume）。本任务每 5 天用 anon key 打一次
+# REST 接口，让项目永远不算"闲置"，从而不再自动暂停。
+#
+# 触发器：
+#   - schedule：每 5 天 UTC 04:17 自动跑（1/6/11/16/21/26/31 日，间隔 < 7 天留余量）
+#   - workflow_dispatch：可在 Actions 页面手动触发，用于发布后立刻验证一次
+#
+# 注意：anon key 本就该暴露在前端（RLS 兜底数据安全），放公开仓库的 workflow 无风险。
+#       本任务只发只读/保活请求，不写任何数据。
+
+name: Keep Supabase alive
+
+on:
+  schedule:
+    - cron: '17 4 */5 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST endpoint (anon)
+        env:
+          SUPABASE_URL: https://osmctjyhdvwmeyljeeua.supabase.co
+          ANON_KEY: sb_publishable_cOhO4R5J1TcYF_BOXwrfkg_43xpz1cP
+        run: |
+          code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/users?select=username&limit=1" \
+            -H "apikey: $ANON_KEY" \
+            -H "Authorization: Bearer $ANON_KEY")
+          echo "Supabase keepalive ping -> HTTP $code"
+          if [ "$code" = "000" ]; then
+            echo "::error::未能连到 Supabase（网络/项目已暂停？）"
+            exit 1
+          fi
