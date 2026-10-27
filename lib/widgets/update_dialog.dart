@@ -13,6 +13,7 @@ Future<void> showUpdateDialog(BuildContext context, UpdateCheckResult res) {
     backgroundColor: Colors.transparent,
     isDismissible: !res.forceUpdate,
     enableDrag: !res.forceUpdate,
+    isScrollControlled: true,
     builder: (_) => _UpdateSheet(info: res.info, force: res.forceUpdate),
   );
 }
@@ -52,21 +53,25 @@ class _UpdateSheetState extends State<_UpdateSheet> {
   @override
   Widget build(BuildContext context) {
     final notes = widget.info.releaseNotes ?? '';
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 22,
-        bottom: 20 + MediaQuery.of(context).padding.bottom,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return ConstrainedBox(
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+      child: SingleChildScrollView(
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 22,
+            bottom: 20 + MediaQuery.of(context).padding.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           Row(
             children: [
               Container(
@@ -156,6 +161,7 @@ class _UpdateSheetState extends State<_UpdateSheet> {
             ],
           ),
         ],
+      ),
       ),
     );
   }
