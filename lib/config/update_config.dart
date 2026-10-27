@@ -8,7 +8,7 @@
 /// version_check.json 推荐直接提交到你的 GitHub 仓库根目录，用 raw 链接：
 ///   https://raw.githubusercontent.com/<用户名>/<仓库>/<分支>/version_check.json
 /// 模板见仓库根目录的 version_check.json（改完再提交）。
-const String kCurrentVersion = '1.0.6';
+const String kCurrentVersion = '1.0.7';
 
 /// version_check.json 的真实路径（不含协议前缀，由下方镜像列表逐个拼接后尝试）
 const String kVersionCheckPath =
