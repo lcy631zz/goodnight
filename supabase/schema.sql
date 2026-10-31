@@ -45,8 +45,12 @@ create table if not exists public.users (
   region        text,
   gender        text,
   grade         text,
-  major         text
+  major         text,
+  user_id       text unique   -- 登录用账号 ID（与显示名 username 区分，类似微信号）
 );
+
+-- 兼容已有库：补 user_id 列（新库上面已含，这里 if not exists 安全跳过）
+alter table public.users add column if not exists user_id text unique;
 
 -- 3) 用户元数据（点赞 / 收藏 / 浏览历史，按用户名隔离）
 create table if not exists public.user_meta (
@@ -166,11 +170,16 @@ create policy "media anon delete"  on storage.objects for delete using (bucket_i
 -- password_hash 由 App 端 _hash()（djb2 变体，16 进制）生成，切勿手改。
 -- 若需删除旧测试账号并重建，见同目录 accounts.sql。
 -- ============================================================================
-insert into public.users (username, role, password_hash, avatar_emoji, avatar_color)
+insert into public.users (username, role, password_hash, avatar_emoji, avatar_color, user_id)
 values
-  ('小ye',  'admin', '74c09be2', '🌙', '#3B6FE0'),
-  ('MS100', 'user',  '37eef629', '🎓', '#F25C7E')
+  ('小ye',  'admin', '74c09be2', '🌙', '#3B6FE0', 'FZ631'),
+  ('MS100', 'user',  '37eef629', '🎓', '#F25C7E', 'MS100')
 on conflict (username) do nothing;
+
+-- 小ye 的登录 id 固定为 FZ631（幂等，重复执行安全）
+update public.users set user_id = 'FZ631' where username = '小ye';
+-- 其余账号兜底：未设 user_id 时默认等于原 username，保证都能登录
+update public.users set user_id = username where user_id is null;
 
 insert into public.user_meta (username, liked, collected, history)
 values

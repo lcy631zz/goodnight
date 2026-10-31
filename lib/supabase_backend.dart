@@ -387,15 +387,17 @@ class SupabaseBackend implements Backend {
 
   @override
   Future<bool> login(String username, String password) async {
+    // 注意：username 参数此处语义为「登录 ID」（user_id），登录入口与显示名区分开
     final res = await _sb
         .from('users')
         .select()
-        .eq('username', username)
+        .eq('user_id', username)
         .eq('password_hash', _hash(password))
         .maybeSingle();
     if (res == null) return false;
-    await _setSessionUser(username);
-    authUserNotifier.value = username; // 广播登录事件，刷新所有依赖登录态的界面
+    final realUser = res['username'] as String; // 取真实主键 username 作为会话标识
+    await _setSessionUser(realUser);
+    authUserNotifier.value = realUser; // 广播登录事件，刷新所有依赖登录态的界面
     return true;
   }
 

@@ -27,7 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final u = _user.text.trim();
     final p = _pass.text;
     if (u.length < 2) {
-      setState(() => _err = '用户名至少 2 个字');
+      setState(() => _err = '账号至少 2 个字');
       return;
     }
     if (p.length < 6) {
@@ -38,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final ok = await DB.login(u, p);
       if (!ok) {
-        setState(() => _err = '用户名或密码错误');
+        setState(() => _err = '账号或密码错误');
         return;
       }
       if (mounted) Navigator.pop(context, true);
@@ -75,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const Text('登录你的账号',
                 style: TextStyle(fontSize: 13, color: subColor)),
             const SizedBox(height: 28),
-            _field(_user, '用户名', false),
+            _field(_user, '账号 ID（如 FZ631）', false),
             const SizedBox(height: 14),
             _field(_pass, '密码（至少 6 位）', true),
             if (_err != null) ...[
