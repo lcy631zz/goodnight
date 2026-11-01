@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../db.dart';
+import 'web/platform_stub.dart'
+    if (dart.library.html) 'web/platform_web.dart';
 
 const primary = Color(0xFF3B6FE0);
 const subColor = Color(0xFF8A90A2);
 const textColor = Color(0xFF1F2330);
 const bgColor = Color(0xFFF4F5F7);
+
+/// 安卓 App 下载地址（走 ghproxy 镜像，国内可下）。
+/// 发布新版本时需同步更新版本号（与 version_check.json 的 downloadUrl 保持一致）。
+const String _apkDownloadUrl =
+    'https://ghproxy.net/https://github.com/lcy631zz/goodnight/releases/download/v1.0.7/goodnight.apk';
 
 /// 账号登录页（不支持自注册，账号由管理员/花名册预置）。
 /// 登录成功后 pop(true)，调用方据此刷新界面。
@@ -105,6 +113,39 @@ class _LoginScreenState extends State<LoginScreen> {
                             fontSize: 15, fontWeight: FontWeight.bold)),
               ),
             ),
+            if (kIsWeb && isAndroidWeb) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.android_rounded, color: primary, size: 22),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        '安卓用户：下载 App 体验更流畅',
+                        style: TextStyle(fontSize: 13, color: textColor),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => openExternalUrl(_apkDownloadUrl),
+                      style: TextButton.styleFrom(
+                        foregroundColor: primary,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                      ),
+                      child: const Text('下载',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
