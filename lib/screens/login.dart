@@ -86,6 +86,9 @@ class _LoginScreenState extends State<LoginScreen> {
             _field(_user, '输入csucid', false),
             const SizedBox(height: 14),
             _field(_pass, '密码（至少 6 位）', true),
+            const SizedBox(height: 8),
+            const Text('初始密码默认为你的 csucid（学号），登录后可在「设置」修改。',
+                style: TextStyle(fontSize: 12, color: subColor)),
             if (_err != null) ...[
               const SizedBox(height: 12),
               Text(_err!, style: const TextStyle(color: Colors.red, fontSize: 13)),
