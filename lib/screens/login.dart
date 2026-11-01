@@ -83,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const Text('登录你的账号',
                 style: TextStyle(fontSize: 13, color: subColor)),
             const SizedBox(height: 28),
-            _field(_user, '账号 ID（如 FZ631）', false),
+            _field(_user, '输入csucid', false),
             const SizedBox(height: 14),
             _field(_pass, '密码（至少 6 位）', true),
             if (_err != null) ...[
