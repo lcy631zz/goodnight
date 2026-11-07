@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../db.dart';
-import 'web/platform_stub.dart'
-    if (dart.library.html) 'web/platform_web.dart';
+import '../web/platform_stub.dart'
+    if (dart.library.html) '../web/platform_web.dart';
 
 const primary = Color(0xFF3B6FE0);
 const subColor = Color(0xFF8A90A2);
