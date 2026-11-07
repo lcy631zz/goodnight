@@ -47,6 +47,12 @@ class HomeScreenState extends State<HomeScreen> {
   Future<void> refresh() async => _load();
 
   Future<void> _load() async {
+    // 作者资料、点赞、收藏都与帖子列表无依赖，先一起发出再等结果。
+    // 走 VPN/代理时每次往返约 0.4s，串行 4 次会明显拖慢首屏。
+    final authorsF = DB.allUsers();
+    final likedF = DB.likedIds();
+    final collectedF = DB.collectedIds();
+
     if (_board.isEmpty) {
       _feed = await DB.recommendFeed();
       _posts = _feed.map((e) => e.post).toList();
@@ -60,10 +66,17 @@ class HomeScreenState extends State<HomeScreen> {
       _posts = all.where((p) => p.board == _board).toList();
       _reasons.clear();
     }
+
+    // 一次性预热所有作者资料，卡片头像直接读缓存，不再逐帖发 getUser。
+    // 拉全表失败时头像退回逐个异步加载，不影响帖子本身展示。
+    try {
+      prefetchUsers(await authorsF);
+    } catch (_) {}
+
     // 一次性取回我的点赞/收藏，再本地匹配——
     // 之前对每条帖子调 DB.decorate（各发 2 个网络请求），20 帖=40 次往返，是首页卡顿的大头。
-    final likedSet = (await DB.likedIds()).toSet();
-    final collectedSet = (await DB.collectedIds()).toSet();
+    final likedSet = (await likedF).toSet();
+    final collectedSet = (await collectedF).toSet();
     for (final p in _posts) {
       p.liked = likedSet.contains(p.id);
       p.collected = collectedSet.contains(p.id);
@@ -312,10 +325,7 @@ class HomeScreenState extends State<HomeScreen> {
                     onTap: () => _openUser(p.author),
                     child: Row(
                       children: [
-                        FutureBuilder<User?>(
-                          future: DB.getUser(p.author),
-                          builder: (_, s) => userAvatar(s.data, radius: 9),
-                        ),
+                        userAvatarByName(p.author, radius: 9),
                         const SizedBox(width: 5),
                         Text(p.author,
                             style:

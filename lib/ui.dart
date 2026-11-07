@@ -88,13 +88,33 @@ Widget userAvatar(User? u, {double radius = 18}) {
   );
 }
 
-/// 按用户名异步取头像（getUser 是异步的，build 里直接传 User? 会编译/运行出错）。
+/// 头像用户信息缓存（进程内）：同一个用户名在列表里反复出现时，不再重复发网络请求。
+/// 列表页可在 _load() 里用 [prefetchUsers] 一次性灌入，命中后卡片为 0 请求。
+final Map<String, User?> _userCache = <String, User?>{};
+
+/// 批量预热头像缓存。传入一批完整 User 后，后续 userAvatarByName 命中即同步渲染。
+void prefetchUsers(Iterable<User> users) {
+  for (final u in users) {
+    _userCache[u.username] = u;
+  }
+}
+
+/// 用户资料变更后调用，让头像立即刷新（例如本人更换头像/昵称）。
+void invalidateUser(String username) => _userCache.remove(username);
+
+/// 按用户名取头像：命中缓存同步渲染；未命中才异步查一次并写入缓存。
 /// 用法：把原本的 `userAvatar(DB.getUser(name), radius: r)` 换成 `userAvatarByName(name, radius: r)`。
 Widget userAvatarByName(String? username, {double radius = 18}) {
   if (username == null) return userAvatar(null, radius: radius);
+  if (_userCache.containsKey(username)) {
+    return userAvatar(_userCache[username], radius: radius);
+  }
   return FutureBuilder<User?>(
     future: DB.getUser(username),
-    builder: (_, s) => userAvatar(s.data, radius: radius),
+    builder: (_, s) {
+      if (s.hasData) _userCache[username] = s.data;
+      return userAvatar(s.data, radius: radius);
+    },
   );
 }
 
