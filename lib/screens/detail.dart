@@ -215,8 +215,10 @@ class _DetailScreenState extends State<DetailScreen> {
     } catch (e) {
       setState(() => _p.sold = !next);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(t('操作失败，请检查网络'))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          duration: const Duration(seconds: 8),
+          content: Text('操作失败：${friendlyError(e)}'),
+        ));
       }
     }
   }

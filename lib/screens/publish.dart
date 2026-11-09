@@ -115,8 +115,8 @@ class _PublishScreenState extends State<PublishScreen> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      // 调试期直接显示真实错误（缺列/RLS/网络等一目了然），不再吞成"检查网络"
-      final msg = e.toString();
+      // 显示真实错误（缺列/RLS/网络等一目了然），网络类错误附带 VPN 排查建议
+      final msg = friendlyError(e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

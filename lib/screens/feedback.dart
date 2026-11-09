@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models.dart';
 import '../db.dart';
+import '../ui.dart';
 import '../lang.dart';
 import '../config/update_config.dart';
 
@@ -51,8 +52,10 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(t('提交失败，请检查网络'))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          duration: const Duration(seconds: 8),
+          content: Text('提交失败：${friendlyError(e)}'),
+        ));
       }
     } finally {
       if (mounted) setState(() => _sending = false);

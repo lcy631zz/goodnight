@@ -118,6 +118,25 @@ Widget userAvatarByName(String? username, {double radius = 18}) {
   );
 }
 
+/// 把后端异常转成人能看懂的提示。
+/// 网络类错误额外给出 VPN 排查建议（规则模式漏代理 supabase.co 是最常见原因）；
+/// 其余错误（缺列 / RLS / 校验失败）直接透出原文，不再一律被吞成「请检查网络」。
+String friendlyError(Object e) {
+  final raw = e.toString();
+  final s = raw.toLowerCase();
+  final network = s.contains('socketexception') ||
+      s.contains('failed host lookup') ||
+      s.contains('connection reset') ||
+      s.contains('handshake') ||
+      s.contains('clientexception') ||
+      s.contains('timeout') ||
+      s.contains('tls') ||
+      s.contains('network');
+  if (!network) return raw;
+  return '连不上服务器：请确认 VPN 已开启，且代理规则包含 supabase.co'
+      '（规则模式常见漏项，可切全局模式验证）。\n原始错误：$raw';
+}
+
 /// 把文本里的 @用户名 高亮（@ 后连续非空白字符视为被 @ 的人）。
 /// 命中好友名或任意 @词都会着色；onMention 可选，点击 @词回调。
 List<TextSpan> mentionSpans(

@@ -27,12 +27,18 @@ jobs:
           SUPABASE_URL: https://osmctjyhdvwmeyljeeua.supabase.co
           ANON_KEY: sb_publishable_cOhO4R5J1TcYF_BOXwrfkg_43xpz1cP
         run: |
-          code=$(curl -sS -o /dev/null -w "%{http_code}" \
-            "$SUPABASE_URL/rest/v1/users?select=username&limit=1" \
-            -H "apikey: $ANON_KEY" \
-            -H "Authorization: Bearer $ANON_KEY")
-          echo "Supabase keepalive ping -> HTTP $code"
-          if [ "$code" = "000" ]; then
-            echo "::error::未能连到 Supabase（网络/项目已暂停？）"
+          code=000
+          for i in 1 2 3; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" \
+              "$SUPABASE_URL/rest/v1/users?select=username&limit=1" \
+              -H "apikey: $ANON_KEY" \
+              -H "Authorization: Bearer $ANON_KEY")
+            echo "attempt $i -> HTTP $code"
+            if [ "$code" = "200" ]; then break; fi
+            sleep 5
+          done
+          if [ "$code" != "200" ]; then
+            echo "::error::保活请求异常（HTTP $code）。000=网络不通；401/403=anon key 失效；503/5xx=项目可能被暂停或平台降级，请去 Supabase 控制台确认。"
             exit 1
           fi
+          echo "Supabase keepalive OK"

@@ -3,7 +3,7 @@ REM ============================================================
 REM  goodnight forum - one-click Flutter Web build script (本地构建)
 REM  Usage: close WorkBuddy, then double-click this file.
 REM  仅用于本地生成网页产物（build/web）。部署请 git push 到 main，
-REM  GitHub Actions 会自动构建并上线到 Netlify，无需手动拖拽。
+REM  GitHub Actions 会自动构建并上线到 GitHub Pages，无需手动操作。
 REM ============================================================
 REM Self-protection: if not a persistent console, relaunch self
 REM in a cmd /k window so it never flashes away (errors stay visible).
@@ -67,8 +67,8 @@ if exist "%OUT%\index.html" (
   echo   %OUT%
   echo.
   echo   部署方式：本仓库已接入 GitHub Actions 自动部署。
-  echo   把代码 git push 到 main 分支，Netlify 会自动重新构建并上线，
-  echo   无需再手动拖拽。线上地址：https://goodnight12.netlify.app
+  echo   把代码 git push 到 main 分支，Actions 会自动重新构建并上线到 GitHub Pages，
+  echo   无需再手动操作。线上地址：https://lcy631zz.github.io/goodnight/
   echo ============================================================
   REM copy SPA redirect rules so deep links work if served locally
   copy /Y "%~dp0_redirects" "%OUT%\_redirects" >nul 2>nul

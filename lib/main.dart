@@ -15,9 +15,102 @@ import 'auth_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+  String? initError;
+  try {
+    await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+  } catch (e) {
+    initError = e.toString();
+  }
   await Lang.load();
+  if (initError != null) {
+    runApp(StartupErrorApp(detail: initError));
+    return;
+  }
   runApp(const MyApp());
+}
+
+/// 后端初始化失败时的兜底页：不再整页白屏，而是明确告诉用户该检查什么。
+/// 开好 VPN 后可直接点「重新连接」进入，无需重启 App。
+class StartupErrorApp extends StatefulWidget {
+  final String detail;
+  const StartupErrorApp({super.key, required this.detail});
+
+  @override
+  State<StartupErrorApp> createState() => _StartupErrorAppState();
+}
+
+class _StartupErrorAppState extends State<StartupErrorApp> {
+  late String _detail;
+  bool _retrying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _detail = widget.detail;
+  }
+
+  Future<void> _retry() async {
+    setState(() => _retrying = true);
+    try {
+      await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+    } catch (e) {
+      // 第一次可能是「部分成功后抛错」，此时单例已就绪，也视为可进入。
+      if (!e.toString().toLowerCase().contains('already')) {
+        if (!mounted) return;
+        setState(() {
+          _detail = e.toString();
+          _retrying = false;
+        });
+        return;
+      }
+    }
+    if (!mounted) return;
+    runApp(const MyApp());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFFF4F5F7),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.wifi_off,
+                    size: 56, color: Color(0xFF8A90A2)),
+                const SizedBox(height: 20),
+                const Text('连不上服务器',
+                    style:
+                        TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 12),
+                const Text(
+                  '请先确认 VPN 已开启，并且代理规则包含 supabase.co。\n'
+                  '规则模式下常见问题是 supabase.co 没走代理，切全局模式可快速验证。',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 14, height: 1.6, color: Color(0xFF5A6072)),
+                ),
+                const SizedBox(height: 16),
+                Text(_detail,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF8A90A2))),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: _retrying ? null : _retry,
+                  child: Text(_retrying ? '连接中…' : '重新连接'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
