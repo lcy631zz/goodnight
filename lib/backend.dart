@@ -31,6 +31,8 @@ abstract class Backend {
   Future<bool> isAdmin();
   Future<bool> login(String username, String password);
   Future<void> logout();
+  /// 校验本机会话令牌是否仍有效（被同类型新设备顶掉则会话令牌不匹配 → 返回 false）。
+  Future<bool> validateSession();
   Future<bool> changePassword(String username, String oldPw, String newPw);
   Future<void> updateUser(User u);
   Future<void> setRole(String username, String role);

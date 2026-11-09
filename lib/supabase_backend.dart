@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';
@@ -41,6 +42,20 @@ class SupabaseBackend implements Backend {
     } else {
       await sp.setString('current_user', u);
     }
+  }
+
+  /// 设备类型：网页视为 PC，安卓 App 视为手机。
+  /// ⚠️ iPhone 用户目前走网页版，会被归为 'pc'，与 PC 互相顶替（内测期可接受，后续可加 UA 细分）。
+  String _deviceType() {
+    if (kIsWeb) return 'pc';
+    return 'phone';
+  }
+
+  /// 生成本机会话令牌（32 字节安全随机，base64url 编码）。
+  String _randomToken() {
+    final rnd = Random.secure();
+    final bytes = List<int>.generate(32, (_) => rnd.nextInt(256));
+    return base64Url.encode(bytes);
   }
 
   // ---------- 行 → 模型 映射 ----------
@@ -396,14 +411,98 @@ class SupabaseBackend implements Backend {
         .maybeSingle();
     if (res == null) return false;
     final realUser = res['username'] as String; // 取真实主键 username 作为会话标识
+
+    // —— 单设备登录限制 ——
+    // 为该 (账号, 设备类型) 生成新会话令牌并 upsert；同类型设备再登录会覆盖旧令牌（顶掉旧设备）。
+    final device = _deviceType();
+    final token = _randomToken();
+    await _sb.from('sessions').upsert(
+      {
+        'username': realUser,
+        'device_type': device,
+        'token': token,
+        'created_at': DateTime.now().toIso8601String(),
+        'last_active': DateTime.now().toIso8601String(),
+      },
+      onConflict: 'username,device_type',
+    );
+
+    // 持久化本机会话（用户名 + 令牌 + 设备类型），供后续校验是否被顶掉
     await _setSessionUser(realUser);
+    final sp = await SharedPreferences.getInstance();
+    await sp.setString('session_token', token);
+    await sp.setString('session_device', device);
+
     authUserNotifier.value = realUser; // 广播登录事件，刷新所有依赖登录态的界面
     return true;
   }
 
   @override
+  Future<bool> validateSession() async {
+    final sp = await SharedPreferences.getInstance();
+    final user = sp.getString('current_user');
+    final token = sp.getString('session_token');
+    final device = sp.getString('session_device');
+    if (user == null) return false;
+
+    // 升级前的旧登录态没有会话令牌：就地补建会话，避免新版上线时
+    // 把所有已登录的人误判成「被顶掉」而强制下线。
+    // 若同类型的另一台旧设备也补建，会互相覆盖，下一轮校验再按单设备规则顶替。
+    if (token == null || device == null) {
+      try {
+        final d = _deviceType();
+        final t = _randomToken();
+        await _sb.from('sessions').upsert(
+          {
+            'username': user,
+            'device_type': d,
+            'token': t,
+            'created_at': DateTime.now().toIso8601String(),
+            'last_active': DateTime.now().toIso8601String(),
+          },
+          onConflict: 'username,device_type',
+        );
+        await sp.setString('session_token', t);
+        await sp.setString('session_device', d);
+      } catch (_) {
+        // 后端暂不可达：保留旧登录态，等下一轮再补建，绝不误踢。
+      }
+      return true;
+    }
+
+    final res = await _sb
+        .from('sessions')
+        .select('token')
+        .eq('username', user)
+        .eq('device_type', device)
+        .maybeSingle();
+    if (res == null) return false; // 会话已被顶掉 / 已登出
+    return res['token'] == token; // 令牌不匹配 = 被同类型新设备顶掉
+  }
+
+  @override
   Future<void> logout() async {
-    await _setSessionUser(null);
+    final sp = await SharedPreferences.getInstance();
+    final user = sp.getString('current_user');
+    final device = sp.getString('session_device');
+    final token = sp.getString('session_token');
+    if (user != null && device != null && token != null) {
+      try {
+        await _sb
+            .from('sessions')
+            .delete()
+            .eq('username', user)
+            .eq('device_type', device)
+            // 只删本机会话：同类型设备顶替后，sessions 里那行已属于新设备，
+            // 旧设备登出时按 token 不匹配会删 0 行，避免把新设备一起踢下线。
+            .eq('token', token);
+      } catch (_) {
+        // 删会话失败也不阻断登出
+      }
+    }
+    await sp.remove('current_user');
+    await sp.remove('session_token');
+    await sp.remove('session_device');
     authUserNotifier.value = null; // 广播登出事件，刷新所有依赖登录态的界面
   }
 

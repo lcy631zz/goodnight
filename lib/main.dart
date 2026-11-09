@@ -12,6 +12,8 @@ import 'config/supabase_config.dart';
 import 'update_service.dart';
 import 'widgets/update_dialog.dart';
 import 'auth_state.dart';
+import 'nav_key.dart';
+import 'session_keeper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -120,6 +122,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'goodnight',
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primaryColor: const Color(0xFF3B6FE0),
@@ -155,6 +158,8 @@ class _MainScreenState extends State<MainScreen> {
     authUserNotifier.addListener(_onAuthChanged);
     DB.canReview().then((v) => setState(() => _canReview = v));
     _refreshUnread();
+    // 启动登录态守护：周期性校验会话是否被同类型设备顶掉
+    startSessionKeeper();
     // 启动后自动检查更新（首次构建完成后再弹窗，避免抢在首屏之前）
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkUpdate());
   }
@@ -191,6 +196,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void dispose() {
     authUserNotifier.removeListener(_onAuthChanged);
+    stopSessionKeeper();
     super.dispose();
   }
 

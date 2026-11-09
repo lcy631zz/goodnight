@@ -20,7 +20,9 @@ const String _apkDownloadUrl =
 class LoginScreen extends StatefulWidget {
   /// false 时隐藏返回按钮（首次进入必须登录才能用）。
   final bool canPop;
-  const LoginScreen({super.key, this.canPop = true});
+  /// true 时显示「账号已在其他设备登录，您已被挤下线」提示条（被顶掉后由会话守护器弹出）。
+  final bool kicked;
+  const LoginScreen({super.key, this.canPop = true, this.kicked = false});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -85,6 +87,32 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 6),
             const Text('登录你的账号',
                 style: TextStyle(fontSize: 13, color: subColor)),
+            if (widget.kicked) ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF25C7E).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.error_outline,
+                        color: Color(0xFFF25C7E), size: 18),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '账号已在其他设备登录，您已被挤下线，请重新登录',
+                        style:
+                            TextStyle(fontSize: 13, color: Color(0xFFF25C7E)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 28),
             _field(_user, '输入csucid', false),
             const SizedBox(height: 14),

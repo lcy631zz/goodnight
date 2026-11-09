@@ -45,6 +45,7 @@ class DB {
   static Future<bool> login(String username, String password) =>
       _backend.login(username, password);
   static Future<void> logout() => _backend.logout();
+  static Future<bool> validateSession() => _backend.validateSession();
   static Future<bool> changePassword(String username, String oldPw, String newPw) =>
       _backend.changePassword(username, oldPw, newPw);
   static Future<void> updateUser(User u) => _backend.updateUser(u);

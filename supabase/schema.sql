@@ -145,6 +145,19 @@ create policy "allow all" on public.messages        for all using (true) with ch
 create policy "allow all" on public.reports         for all using (true) with check (true);
 create policy "allow all" on public.feedback        for all using (true) with check (true);
 
+-- 7) 登录会话（单设备限制：每账号最多 1 个 PC + 1 个手机；同类型再登录会顶掉旧的）
+create table if not exists public.sessions (
+  username     text not null,
+  device_type  text not null check (device_type in ('pc','phone')),
+  token        text not null,
+  created_at   timestamptz not null default now(),
+  last_active  timestamptz not null default now(),
+  primary key (username, device_type)
+);
+
+alter table public.sessions enable row level security;
+create policy "allow all" on public.sessions for all using (true) with check (true);
+
 -- ============================================================================
 -- 存储桶：图片 / 头像（公开读，写入由 anon key 放行）
 -- ============================================================================
