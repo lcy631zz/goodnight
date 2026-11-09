@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models.dart';
 import '../db.dart';
 import '../lang.dart';
@@ -10,6 +11,9 @@ import '../screens/feedback.dart';
 const primary = Color(0xFF3B6FE0);
 const subColor = Color(0xFF8A90A2);
 const textColor = Color(0xFF1F2330);
+
+/// 校外访问地址：校内域名只能在校园网内解析，不在学校的同学用这个 GitHub Pages 地址。
+const String _publicWebUrl = 'https://lcy631zz.github.io/goodnight/';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -103,6 +107,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const FeedbackScreen()),
                   ),
+                ),
+                const Divider(height: 1, color: Color(0xFFECEEF2)),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  isThreeLine: true,
+                  title: Text(t('校外访问地址'),
+                      style: const TextStyle(fontSize: 14)),
+                  subtitle: Text(
+                    '$_publicWebUrl\n不在校园网的同学请用这个地址；登录和刷帖仍需开 VPN。',
+                    style: const TextStyle(
+                        fontSize: 11.5, color: subColor, height: 1.5),
+                  ),
+                  trailing:
+                      const Icon(Icons.copy_all, size: 18, color: subColor),
+                  onTap: () async {
+                    await Clipboard.setData(
+                        const ClipboardData(text: _publicWebUrl));
+                    if (mounted) _toast('已复制，可发给校外同学');
+                  },
                 ),
               ],
             ),
