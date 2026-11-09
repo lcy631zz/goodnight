@@ -114,7 +114,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   isThreeLine: true,
                   title: Text(t('校外访问地址'),
                       style: const TextStyle(fontSize: 14)),
-                  subtitle: Text(
+                  // 用可选中文本：校内 IIS 是 HTTP，浏览器剪贴板 API 不一定可用，
+                  // 至少要让用户能长按手动选中网址。
+                  subtitle: SelectableText(
                     '$_publicWebUrl\n不在校园网的同学请用这个地址；登录和刷帖仍需开 VPN。',
                     style: const TextStyle(
                         fontSize: 11.5, color: subColor, height: 1.5),
@@ -122,9 +124,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   trailing:
                       const Icon(Icons.copy_all, size: 18, color: subColor),
                   onTap: () async {
-                    await Clipboard.setData(
-                        const ClipboardData(text: _publicWebUrl));
-                    if (mounted) _toast('已复制，可发给校外同学');
+                    try {
+                      await Clipboard.setData(
+                          const ClipboardData(text: _publicWebUrl));
+                      if (mounted) _toast('已复制，可发给校外同学');
+                    } catch (_) {
+                      if (mounted) _toast('复制失败，请长按网址手动复制');
+                    }
                   },
                 ),
               ],
