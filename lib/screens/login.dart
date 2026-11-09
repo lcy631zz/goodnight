@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../db.dart';
+import '../ui.dart';
 import '../web/platform_stub.dart'
     if (dart.library.html) '../web/platform_web.dart';
 
@@ -38,8 +39,10 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _err = '账号至少 2 个字');
       return;
     }
-    if (p.length < 6) {
-      setState(() => _err = '密码至少 6 位');
+    // 登录不限制密码长度：初始密码是 5 位 csucid，老账号又有 6 / 8 位，
+    // 在这里卡最小长度只会误拦；凭证是否正确交给后端按哈希精确比对。
+    if (p.isEmpty) {
+      setState(() => _err = '请输入密码');
       return;
     }
     setState(() => _loading = true);
@@ -53,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       // 旧包没有这层捕获，登录请求一旦抛异常就表现为"点了没反应"。
       // 现在把错误显示出来，便于区分是网络问题还是凭证问题。
-      if (mounted) setState(() => _err = '登录失败：${e.toString()}');
+      if (mounted) setState(() => _err = '登录失败：${friendlyError(e)}');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -85,9 +88,9 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 28),
             _field(_user, '输入csucid', false),
             const SizedBox(height: 14),
-            _field(_pass, '密码（至少 6 位）', true),
+            _field(_pass, '输入密码', true),
             const SizedBox(height: 8),
-            const Text('初始密码默认为你的 csucid（学号），登录后可在「设置」修改。',
+            const Text('初始密码默认为你的 csucid，登录后可在「设置」修改。',
                 style: TextStyle(fontSize: 12, color: subColor)),
             if (_err != null) ...[
               const SizedBox(height: 12),
