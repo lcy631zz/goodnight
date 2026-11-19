@@ -1,21 +1,26 @@
 # goodnight 后端保活（防 Supabase 免费项目因 7 天闲置自动暂停）
 #
-# 原理：Supabase 免费项目 7 天无任何请求就会被自动暂停（暂停后 App/网页白屏，
-# 且开 VPN 也救不了，必须去控制台手动 Resume）。本任务每 5 天用 anon key 打一次
-# REST 接口，让项目永远不算"闲置"，从而不再自动暂停。
+# ⚠️ 频率教训（2026-11-19）：旧版 cron 是每 5 天一次（*/5），11-16 那次失败后
+#    下一次要等到 11-21，从 11-11 最后一次成功算起间隔 8 天 → 项目被暂停。
+#    Supabase 官方要求「过去一周每天都有若干次数据库查询」，隔几天打一次不保证有效。
+#    故改为每天 2 次，单次失败 12 小时后即可补上，远低于 7 天阈值。
+#
+# 原理：Supabase 免费项目 7 天数据库活动不足就会被自动暂停（暂停后 App/网页白屏，
+# 且开 VPN 也救不了，必须去控制台手动 Resume）。本任务定期用 anon key 打一次
+# REST 表查询（真实数据库查询，算活动），让项目永远不算"闲置"。
 #
 # 触发器：
-#   - schedule：每 5 天 UTC 04:17 自动跑（1/6/11/16/21/26/31 日，间隔 < 7 天留余量）
-#   - workflow_dispatch：可在 Actions 页面手动触发，用于发布后立刻验证一次
+#   - schedule：每天 UTC 00:17 / 12:17 自动跑（避开整点拥堵；北京 08:17 / 20:17）
+#   - workflow_dispatch：可在 Actions 页面手动触发，Resume 后立即验证一次
 #
-# 注意：anon key 本就该暴露在前端（RLS 兜底数据安全），放公开仓库的 workflow 无风险。
-#       本任务只发只读/保活请求，不写任何数据。
+# 注意：anon key 本就该暴露在前端（RLS/列权限兜底数据安全），放公开仓库的 workflow 无风险。
+#       本任务只发只读保活请求，不写任何数据。
 
 name: Keep Supabase alive
 
 on:
   schedule:
-    - cron: '17 4 */5 * *'
+    - cron: '17 0,12 * * *'
   workflow_dispatch:
 
 jobs:
@@ -28,8 +33,8 @@ jobs:
           ANON_KEY: sb_publishable_cOhO4R5J1TcYF_BOXwrfkg_43xpz1cP
         run: |
           code=000
-          for i in 1 2 3; do
-            code=$(curl -sS -o /dev/null -w "%{http_code}" \
+          for i in 1 2 3 4 5; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 10 --max-time 20 \
               "$SUPABASE_URL/rest/v1/users?select=username&limit=1" \
               -H "apikey: $ANON_KEY" \
               -H "Authorization: Bearer $ANON_KEY")
@@ -38,7 +43,7 @@ jobs:
             sleep 5
           done
           if [ "$code" != "200" ]; then
-            echo "::error::保活请求异常（HTTP $code）。000=网络不通；401/403=anon key 失效；503/5xx=项目可能被暂停或平台降级，请去 Supabase 控制台确认。"
+            echo "::error::保活请求异常（HTTP $code）。000=网络不通；401/403=anon key 或列权限失效；503/5xx=项目可能已被暂停或平台降级，请去 Supabase 控制台确认并 Resume。"
             exit 1
           fi
           echo "Supabase keepalive OK"
