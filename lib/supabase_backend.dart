@@ -29,6 +29,11 @@ class _Scored {
 class SupabaseBackend implements Backend {
   SupabaseClient get _sb => Supabase.instance.client;
 
+  /// anon 可读的用户公开字段集合。收紧权限后 users 表不再允许 anon 读 password_hash，
+  /// 所有读取用户的地方都必须用这个显式列清单，不能再用 select() 拉全列。
+  static const String _publicUserColumns =
+      'username,role,avatar_emoji,avatar_color,avatar_url,bio,region,gender,grade,major,user_id';
+
   // ---------- 本机会话（当前登录用户名） ----------
   Future<String?> _sessionUser() async {
     final sp = await SharedPreferences.getInstance();
@@ -114,7 +119,8 @@ class SupabaseBackend implements Backend {
   User _rowToUser(Map<String, dynamic> r) => User(
         username: r['username'],
         role: r['role'] ?? 'user',
-        password: r['password_hash'] ?? '',
+        // password_hash 不再下发到客户端；本地用户模型的 password 字段仅作占位。
+        password: '',
         avatarEmoji: r['avatar_emoji'] ?? '',
         avatarColor: r['avatar_color'] ?? '#3B6FE0',
         avatarPath: r['avatar_url'],
@@ -379,7 +385,7 @@ class SupabaseBackend implements Backend {
   Future<User?> getUser(String username) async {
     final res = await _sb
         .from('users')
-        .select()
+        .select(_publicUserColumns)
         .eq('username', username)
         .maybeSingle();
     if (res == null) return null;
@@ -388,7 +394,7 @@ class SupabaseBackend implements Backend {
 
   @override
   Future<List<User>> allUsers() async {
-    final res = await _sb.from('users').select();
+    final res = await _sb.from('users').select(_publicUserColumns);
     return (res as List)
         .map((e) => _rowToUser(e as Map<String, dynamic>))
         .toList();
@@ -402,30 +408,22 @@ class SupabaseBackend implements Backend {
 
   @override
   Future<bool> login(String username, String password) async {
-    // 注意：username 参数此处语义为「登录 ID」（user_id），登录入口与显示名区分开
-    final res = await _sb
-        .from('users')
-        .select()
-        .eq('user_id', username)
-        .eq('password_hash', _hash(password))
-        .maybeSingle();
-    if (res == null) return false;
-    final realUser = res['username'] as String; // 取真实主键 username 作为会话标识
-
-    // —— 单设备登录限制 ——
-    // 为该 (账号, 设备类型) 生成新会话令牌并 upsert；同类型设备再登录会覆盖旧令牌（顶掉旧设备）。
+    // 注意：username 参数此处语义为「登录 ID」（user_id），登录入口与显示名区分开。
+    // 安全加固：密码比对放到服务端函数 app_login 内完成，客户端不再读取 users.password_hash，
+    // anon 也就无法通过 REST 直接拖走全表哈希。哈希算法不变，老账号密码照常可用。
+    // 会话令牌由服务端函数生成并直接写入 sessions（anon 不再有 sessions 的写权限，
+    // 否则攻击者能伪造 admin 会话提权）。同类型设备再登录会覆盖旧令牌 = 顶掉旧设备。
     final device = _deviceType();
-    final token = _randomToken();
-    await _sb.from('sessions').upsert(
-      {
-        'username': realUser,
-        'device_type': device,
-        'token': token,
-        'created_at': DateTime.now().toIso8601String(),
-        'last_active': DateTime.now().toIso8601String(),
-      },
-      onConflict: 'username,device_type',
-    );
+    final res = await _sb.rpc('app_login', params: {
+      'p_user_id': username,
+      'p_hash': _hash(password),
+      'p_device': device,
+    });
+    if (res == null) return false;
+    final m = res as Map;
+    final realUser = m['username']?.toString();
+    final token = m['token']?.toString();
+    if (realUser == null || token == null) return false;
 
     // 持久化本机会话（用户名 + 令牌 + 设备类型），供后续校验是否被顶掉
     await _setSessionUser(realUser);
@@ -445,39 +443,34 @@ class SupabaseBackend implements Backend {
     final device = sp.getString('session_device');
     if (user == null) return false;
 
-    // 升级前的旧登录态没有会话令牌：就地补建会话，避免新版上线时
-    // 把所有已登录的人误判成「被顶掉」而强制下线。
-    // 若同类型的另一台旧设备也补建，会互相覆盖，下一轮校验再按单设备规则顶替。
+    // 升级前的旧登录态没有令牌：服务端函数会就地补建会话，
+    // 避免新版上线时把所有已登录的人误判成「被顶掉」而强制下线。
+    // 令牌同样由服务端生成并返回，本地不碰 sessions 表。
     if (token == null || device == null) {
+      final d = _deviceType();
       try {
-        final d = _deviceType();
-        final t = _randomToken();
-        await _sb.from('sessions').upsert(
-          {
-            'username': user,
-            'device_type': d,
-            'token': t,
-            'created_at': DateTime.now().toIso8601String(),
-            'last_active': DateTime.now().toIso8601String(),
-          },
-          onConflict: 'username,device_type',
-        );
-        await sp.setString('session_token', t);
-        await sp.setString('session_device', d);
+        final res = await _sb.rpc('app_ensure_session', params: {
+          'p_username': user,
+          'p_device': d,
+        });
+        if (res != null) {
+          await sp.setString('session_token', res.toString());
+          await sp.setString('session_device', d);
+        }
       } catch (_) {
         // 后端暂不可达：保留旧登录态，等下一轮再补建，绝不误踢。
       }
       return true;
     }
 
-    final res = await _sb
-        .from('sessions')
-        .select('token')
-        .eq('username', user)
-        .eq('device_type', device)
-        .maybeSingle();
+    // 令牌比对移到服务端函数：anon 连 sessions 表都读不到，无法窥探或篡改令牌。
+    final res = await _sb.rpc('app_validate_session', params: {
+      'p_username': user,
+      'p_device': device,
+      'p_token': token,
+    });
     if (res == null) return false; // 会话已被顶掉 / 已登出
-    return res['token'] == token; // 令牌不匹配 = 被同类型新设备顶掉
+    return res == true; // 令牌不匹配 = 被同类型新设备顶掉
   }
 
   @override
@@ -488,14 +481,13 @@ class SupabaseBackend implements Backend {
     final token = sp.getString('session_token');
     if (user != null && device != null && token != null) {
       try {
-        await _sb
-            .from('sessions')
-            .delete()
-            .eq('username', user)
-            .eq('device_type', device)
-            // 只删本机会话：同类型设备顶替后，sessions 里那行已属于新设备，
-            // 旧设备登出时按 token 不匹配会删 0 行，避免把新设备一起踢下线。
-            .eq('token', token);
+        // 服务端函数内按 token 精确删除：同类型设备顶替后那行已属于新设备，
+        // 旧设备登出时 token 不匹配会删 0 行，避免把新设备一起踢下线。
+        await _sb.rpc('app_logout_session', params: {
+          'p_username': user,
+          'p_device': device,
+          'p_token': token,
+        });
       } catch (_) {
         // 删会话失败也不阻断登出
       }
@@ -509,21 +501,21 @@ class SupabaseBackend implements Backend {
   @override
   Future<bool> changePassword(
       String username, String oldPw, String newPw) async {
-    final u = await getUser(username);
-    if (u == null) return false;
-    if (u.password != _hash(oldPw)) return false;
-    await _sb
-        .from('users')
-        .update({'password_hash': _hash(newPw)})
-        .eq('username', username);
-    return true;
+    // 安全加固：旧密码校验 + 新密码写入都在服务端函数内完成，
+    // 客户端不再读取 password_hash，也不再有该列的 UPDATE 权限。
+    final res = await _sb.rpc('app_change_password', params: {
+      'p_username': username,
+      'p_old_hash': _hash(oldPw),
+      'p_new_hash': _hash(newPw),
+    });
+    return res == true;
   }
 
   @override
   Future<void> updateUser(User u) async {
+    // 只更新公开资料字段。role 与 password_hash 已对 anon 关闭直接写入：
+    // 编辑资料页不该改这两项，去掉后列级 UPDATE 授权即可覆盖本处所有字段。
     await _sb.from('users').update({
-      'role': u.role,
-      'password_hash': u.password,
       'avatar_emoji': u.avatarEmoji,
       'avatar_color': u.avatarColor,
       'avatar_url': u.avatarPath,
@@ -537,7 +529,20 @@ class SupabaseBackend implements Backend {
 
   @override
   Future<void> setRole(String username, String role) async {
-    await _sb.from('users').update({'role': role}).eq('username', username);
+    // 安全加固：改角色走服务端函数，函数会校验「调用者本人就是管理员」
+    // （用本地会话令牌在 sessions 表里核对身份），普通用户自己提权会被拒绝。
+    final sp = await SharedPreferences.getInstance();
+    final caller = sp.getString('current_user');
+    final token = sp.getString('session_token');
+    final device = sp.getString('session_device');
+    if (caller == null || token == null || device == null) return;
+    await _sb.rpc('app_set_role', params: {
+      'p_caller': caller,
+      'p_token': token,
+      'p_device': device,
+      'p_target': username,
+      'p_role': role,
+    });
   }
 
   // ---------- 举报 / 审核 ----------
