@@ -1,7 +1,7 @@
 {
-  "latestVersion": "1.0.7",
+  "latestVersion": "1.0.8",
   "minRequiredVersion": "1.0.0",
-  "downloadUrl": "https://ghproxy.net/https://github.com/lcy631zz/goodnight/releases/download/v1.0.7/goodnight.apk",
-  "releaseNotes": "· 修复反复弹「发现新版本」的问题\n· 添加好友页：点头像/用户名可进入对方主页\n· 管理员可在好友列表直接调整用户角色（普通/审核/管理员）\n· 首页瀑布流在电脑网页上布局优化，不再巨图/大留白\n· 加好友界面新增搜索框（按用户名/性别/专业/年级实时筛选）\n· 头像上传加异常捕获，失败会提示具体错误，且选完即时保存\n· 更新检查改为多镜像重试（ghproxy.net/com/io + 兜底直连），国内拉取更稳\n· 评论回复修复：发送失败不再静默吞掉，会提示真实错误\n· 作者点赞/置顶评论、作者与管理员可删评论\n· 发布者可删自己帖、管理员可删任意帖\n· 网页版迁移至 GitHub Pages",
+  "downloadUrl": "https://ghproxy.net/https://github.com/lcy631zz/goodnight/releases/download/v1.0.8/goodnight.apk",
+  "releaseNotes": "· 单设备登录：同账号可在 1 台电脑 + 1 部手机同时在线，第二台同类设备登录会顶掉前一台\n· 登录安全加固：密码校验、改密、改角色、会话全部改走服务端函数，防止越权\n· 关于页新增校外访问地址，点一下即可复制分享\n· 修复后端偶尔自动暂停导致白屏的问题\n· 登录失败提示更明确，区分网络问题与账号密码错误",
   "forceUpdate": false
 }
