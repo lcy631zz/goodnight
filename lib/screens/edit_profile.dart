@@ -92,7 +92,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('头像上传失败：${e.toString()}')));
+            content: Text('头像上传失败：${friendlyError(e)}')));
       }
     }
   }

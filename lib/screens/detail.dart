@@ -160,7 +160,7 @@ class _DetailScreenState extends State<DetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             duration: const Duration(seconds: 8),
-            content: Text('评论发送失败：${e.toString()}'),
+            content: Text('评论发送失败：${friendlyError(e)}'),
           ),
         );
       }
@@ -359,7 +359,7 @@ class _DetailScreenState extends State<DetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             duration: const Duration(seconds: 8),
-            content: Text('${t('删除失败')}：${e.toString()}'),
+            content: Text('${t('删除失败')}：${friendlyError(e)}'),
           ),
         );
       }
@@ -410,7 +410,7 @@ class _DetailScreenState extends State<DetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             duration: const Duration(seconds: 8),
-            content: Text('${t('举报失败')}：${e.toString()}'),
+            content: Text('${t('举报失败')}：${friendlyError(e)}'),
           ),
         );
       }
@@ -452,7 +452,7 @@ class _DetailScreenState extends State<DetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${t('删除失败')}: ${e.toString()}')),
+          SnackBar(content: Text('${t('删除失败')}: ${friendlyError(e)}')),
         );
       }
     }
@@ -536,7 +536,7 @@ class _DetailScreenState extends State<DetailScreen> {
       setState(() => c.authorLiked = !c.authorLiked); // 回滚
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${t('操作失败')}：${e.toString()}')),
+          SnackBar(content: Text('${t('操作失败')}：${friendlyError(e)}')),
         );
       }
     }
@@ -1077,7 +1077,7 @@ class _PostVideoPlayerState extends State<PostVideoPlayer> {
       ..initialize().then((_) {
         if (mounted) setState(() => _ready = true);
       }).catchError((e) {
-        if (mounted) setState(() => _error = e.toString());
+        if (mounted) setState(() => _error = friendlyError(e));
       });
   }
 

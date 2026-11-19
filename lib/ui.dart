@@ -121,9 +121,12 @@ Widget userAvatarByName(String? username, {double radius = 18}) {
 /// 把后端异常转成人能看懂的提示。
 /// 网络类错误额外给出 VPN 排查建议（规则模式漏代理 supabase.co 是最常见原因）；
 /// 其余错误（缺列 / RLS / 校验失败）直接透出原文，不再一律被吞成「请检查网络」。
+/// 面向用户展示的错误文案。
+/// 安全要求：绝不把异常原文（含表名/列名/函数/堆栈/SQL 状态）显示到界面，
+/// 否则攻击者可直接从报错推断内部实现并针对性攻击。这里只返回通用分类提示，
+/// 详细信息仅写进控制台日志，供开发者本地排查。
 String friendlyError(Object e) {
-  final raw = e.toString();
-  final s = raw.toLowerCase();
+  final s = e.toString().toLowerCase();
   final network = s.contains('socketexception') ||
       s.contains('failed host lookup') ||
       s.contains('connection reset') ||
@@ -132,9 +135,12 @@ String friendlyError(Object e) {
       s.contains('timeout') ||
       s.contains('tls') ||
       s.contains('network');
-  if (!network) return raw;
-  return '连不上服务器：请确认 VPN 已开启，且代理规则包含 supabase.co'
-      '（规则模式常见漏项，可切全局模式验证）。\n原始错误：$raw';
+  // 详细错误只进日志、不上面：Flutter 下用 debugPrint，不污染用户可见文本。
+  debugPrint('[goodnight error] $e');
+  if (network) {
+    return '连不上服务器，请检查网络或 VPN 代理设置';
+  }
+  return '操作失败，请稍后重试';
 }
 
 /// 把文本里的 @用户名 高亮（@ 后连续非空白字符视为被 @ 的人）。

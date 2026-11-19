@@ -44,7 +44,8 @@ class _UpdateSheetState extends State<_UpdateSheet> {
         if (mounted) setState(() => _percent = p);
       },
       onError: (e) {
-        if (mounted) setState(() => _err = e);
+        // 只显示通用提示，不把异常原文（含下载路径/网络细节）暴露给界面。
+        if (mounted) setState(() => _err = '下载失败，请稍后重试');
       },
     );
     if (mounted) setState(() => _busy = false);

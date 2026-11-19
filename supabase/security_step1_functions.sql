@@ -218,6 +218,8 @@ comment on function public.app_change_password(text, text, text) is
 --      anon 无法伪造，见第 2 步会撤销 sessions 全部 anon 权限）
 --   ② users 表里 caller 的 role 必须是 admin
 -- 两项都通过才允许改目标用户角色。普通用户自己提权会被拒绝。
+-- ⚠️ 安全：所有拒绝分支统一抛「操作失败」，不向调用方暴露具体是哪一项没通过，
+--    避免攻击者靠报错差异探测校验逻辑；真实原因只留在数据库日志里。
 create or replace function public.app_set_role(
   p_caller text, p_token text, p_device text, p_target text, p_role text)
 returns void
@@ -231,7 +233,7 @@ declare
 begin
   if p_caller is null or p_token is null or p_device is null
      or p_target is null or p_role is null then
-    raise exception '参数不完整';
+    raise exception '操作失败';
   end if;
 
   select exists(
@@ -243,7 +245,7 @@ begin
   ) into v_valid_session;
 
   if not v_valid_session then
-    raise exception '会话无效，请重新登录';
+    raise exception '操作失败';
   end if;
 
   select role
@@ -252,11 +254,11 @@ begin
    where username = p_caller;
 
   if v_caller_role is distinct from 'admin' then
-    raise exception '无权操作：仅管理员可修改角色';
+    raise exception '操作失败';
   end if;
 
   if p_role not in ('user', 'reviewer', 'admin') then
-    raise exception '非法角色';
+    raise exception '操作失败';
   end if;
 
   update public.users set role = p_role where username = p_target;

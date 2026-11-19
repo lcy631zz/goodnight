@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models.dart';
 import '../db.dart';
+import '../ui.dart';
 import '../lang.dart';
 
 const primary = Color(0xFF3B6FE0);
@@ -104,7 +105,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           duration: const Duration(seconds: 8),
-          content: Text('${t('操作失败')}：${e.toString()}'),
+          content: Text('${t('操作失败')}：${friendlyError(e)}'),
         ));
       }
       return;
